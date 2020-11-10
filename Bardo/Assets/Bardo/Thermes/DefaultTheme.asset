@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e1a5fbd5124b476aaabf36c82c8187fa, type: 3}
+  m_Name: DefaultTheme
+  m_EditorClassIdentifier: 
+  description: Default Theme
+  stairsDown2: {fileID: 11400000, guid: 2485057be54b964499816a8456ce6fb5, type: 2}
+  stairsDown1: {fileID: 11400000, guid: be10ca62f55e864458fef0b2bbe8389d, type: 2}
+  floor: {fileID: 11400000, guid: d25b7d65e9b58c1418f645624a80726c, type: 2}
+  stairsUp1: {fileID: 11400000, guid: f8c47286d9c4fcd41816a04830ffa4bf, type: 2}
+  stairsUp2: {fileID: 11400000, guid: b90f50ba5551d8a4fae157e9830dd8a9, type: 2}
+  wall: {fileID: 11400000, guid: 24db2f64e1495b247b811354c761a893, type: 2}
+  door: {fileID: 11400000, guid: fd65a070370c6e846ba30e5b792b98ad, type: 2}
+  secretDoor: {fileID: 11400000, guid: 59a9be3adc0b4684c9e4b7f83bfcb855, type: 2}
+  portcullis: {fileID: 11400000, guid: af6c5efefd24b5840994407818f2873e, type: 2}

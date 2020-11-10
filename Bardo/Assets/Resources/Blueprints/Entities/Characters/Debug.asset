@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 69d7c21871b144bca5d58b2bcf10f268, type: 3}
+  m_Name: Debug
+  m_EditorClassIdentifier: 
+  folder: Characters
+  hasBase: 1
+  baseSize: 0.8
+  baseMaterial: {fileID: 2100000, guid: 28cebc2a08ebaab45a41d0c906a713e3, type: 2}
+  hasBaseImage: 0
+  baseImage: {fileID: 0}
+  hasBody: 1
+  bodySize: 1
+  bodyMesh: {fileID: -3150881098221132177, guid: f8bbfcaa83d40204288b9e2df01f8a0c, type: 3}
+  scaleCorrection: 0.5
+  bodyMaterial: {fileID: 2100000, guid: a63adb52c960c564ba9a1a3845f090fe, type: 2}
+  hasName: 0
+  hasHealth: 1
+  hasStamina: 0
+  hasMana: 0
+  hasVision: 1
+  hasLight: 1
+  lightRange: 5
+  hasAura: 0
+  auraRange: 0
+  auraMaterial: {fileID: 0}
