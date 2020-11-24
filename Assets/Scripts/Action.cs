@@ -1,14 +1,15 @@
 ﻿
 using System;
 using System.Collections.Generic;
+using UnityEngine.Serialization;
 
 [Serializable]
 public class Action
 {
     public string name;
-    public string player;
+    public string map;
     public List<string> strings;
-    public List<Map.SerializableMap> maps;
     public List<Tile.SerializableTile> tiles;
     public List<Entity.SerializableEntity> entities;
+    public bool done;
 }

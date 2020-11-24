@@ -6,15 +6,14 @@ using UnityEngine.Serialization;
 
 public class GameMaster : MonoBehaviour
 {
-    public Transform mapsParent;
     public GameObject mapPrefab;
     public GameObject tilePrefab;
     public GameObject entityPrefab;
 
-    public string player = "default";
+    public string player;
+    public string password;
     public bool master;
-    public string activeCampaign = "default";
-    public Map activeMap;
+    public Campaign campaign;
     public List<Action> actionsToDo = new List<Action>();
     public List<Action> actionsDone = new List<Action>();
     
@@ -25,18 +24,27 @@ public class GameMaster : MonoBehaviour
         instance = this;
     }
 
-    private void Update()
+    private void Start()
     {
-        if (actionsToDo.Count == 0)
-            return;
-        var action = actionsToDo[0];
-        try { ResolveAction(action); } finally { actionsToDo.Remove(action); }
+        campaign = GameObject.Find("Campaign").GetComponent<Campaign>();
+        
+        
+        for (var i = 0; i < campaign.mapsParent.childCount; i++)
+            campaign.mapsParent.GetChild(i).gameObject.SetActive(false);
     }
 
-    public static class Actions
+    private void Update()
     {
-        // map actions
-        public const string LoadMap = "LoadMap";
+        foreach (var action in actionsToDo.Where(a => a.map == campaign.activeMap.name))
+            try { ResolveAction(action); } finally { action.done = true; }
+
+        var actionsToDelete = actionsToDo.Where(a => a.done).ToList();
+        if (actionsToDelete.Any())
+            actionsToDo.Remove(actionsToDelete[0]);
+    }
+
+    public static class ActionNames
+    {
         // entity actions
         public const string CreateEntity = "CreateEntity";
         public const string ChangeEntity = "ChangeEntity";
@@ -51,21 +59,19 @@ public class GameMaster : MonoBehaviour
     {
         switch (action.name)
         {
-            // map actions
-            case Actions.LoadMap: LoadMap(action.maps[0]); break;
             // entity actions
-            case Actions.CreateEntity: CreateEntity(action.entities[0]); break;
-            case Actions.ChangeEntity: ChangeEntity(action.entities[0]); break;
-            case Actions.DeleteEntity: DeleteEntity(action.entities[0]); break;
+            case ActionNames.CreateEntity: CreateEntity(action.entities[0]); break;
+            case ActionNames.ChangeEntity: ChangeEntity(action.entities[0]); break;
+            case ActionNames.DeleteEntity: DeleteEntity(action.entities[0]); break;
         }
     }
 
     public void LoadMap(Map.SerializableMap serializableMap)
     {
         var mapName = serializableMap.name;
-        for (var i = 0; i < mapsParent.childCount; i++)
-            mapsParent.GetChild(i).gameObject.SetActive(false);
-        var mapTransform = mapsParent.Find(mapName);
+        for (var i = 0; i < campaign.mapsParent.childCount; i++)
+            campaign.mapsParent.GetChild(i).gameObject.SetActive(false);
+        var mapTransform = campaign.mapsParent.Find(mapName);
         Map map;
         if (mapTransform != null)
         {
@@ -74,35 +80,36 @@ public class GameMaster : MonoBehaviour
         }
         else
         {
-            var mapGo = Instantiate(mapPrefab, Vector3.zero, Quaternion.identity, mapsParent);
+            var mapGo = Instantiate(mapPrefab, Vector3.zero, Quaternion.identity, campaign.mapsParent);
             mapGo.name = serializableMap.name;
             map = mapGo.GetComponent<Map>();
             map.Deserialize(serializableMap);
         }
-        activeMap = map;
+        campaign.activeMap = map;
+        campaign.maps.Add(map);
     }
 
     public void CreateEntity(Entity.SerializableEntity serializableEntity)
     {
-        if (activeMap.entities.Any(e => e.name == serializableEntity.name))
+        if (campaign.activeMap.entities.Any(e => e.name == serializableEntity.name))
             throw new Exception($"Name already exist in map: {serializableEntity.name}");
         var entityGo = Instantiate(entityPrefab, (Vector2) serializableEntity.position, 
-            Quaternion.identity, activeMap.entitiesParent);
+            Quaternion.identity, campaign.activeMap.entitiesParent);
         var entity = entityGo.GetComponent<Entity>();
-        entity.map = activeMap;
+        entity.map = campaign.activeMap;
         entity.Deserialize(serializableEntity);
         entity.map.entities.Add(entity);
     }
 
     public void ChangeEntity(Entity.SerializableEntity serializableEntity)
     {
-        var entity = activeMap.entities.Find(e => e.Name == serializableEntity.name);
+        var entity = campaign.activeMap.entities.Find(e => e.Name == serializableEntity.name);
         entity.Deserialize(serializableEntity);
     }
 
     public void DeleteEntity(Entity.SerializableEntity serializableEntity)
     {
-        var entity = activeMap.entities.Find(e => e.Name == serializableEntity.name);
+        var entity = campaign.activeMap.entities.Find(e => e.Name == serializableEntity.name);
         entity.map.entities.Remove(entity);
         Destroy(entity);
     }

@@ -234,7 +234,6 @@ public class Map : MonoBehaviour
             var entityGo = Instantiate(gameMaster.entityPrefab, (Vector2) serializableEntity.position, 
                 Quaternion.identity, entitiesParent);
             var entity = entityGo.GetComponent<Entity>();
-            entity.map = this;
             entity.Deserialize(serializableEntity);
             entities.Add(entity);
         }

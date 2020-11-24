@@ -377,8 +377,10 @@ public class Entity : MonoBehaviour
 
     private void Update()
     {
+        if (ReferenceEquals(map, null) && !ReferenceEquals(GameMaster.instance.campaign.activeMap, null))
+            GameMaster.instance.campaign.activeMap.AddEntity(this);
         if (ReferenceEquals(map, null))
-            GameMaster.instance.activeMap.AddEntity(this);
+            return;        
         UpdateUi();
         UpdatePosition();
         UpdateVision();
@@ -460,8 +462,8 @@ public class Entity : MonoBehaviour
             _inMovement = false;
             GameMaster.instance.RegisterAction(new Action
             {
-                name = GameMaster.Actions.ChangeEntity,
-                player = GameMaster.instance.player,
+                map = map.name,
+                name = GameMaster.ActionNames.ChangeEntity,
                 entities = new List<SerializableEntity>{Serialize()}
             });
         }
@@ -517,6 +519,7 @@ public class Entity : MonoBehaviour
     public class SerializableEntity
     {
         public string name;
+        public string map;
         public string blueprint;
         public float initiative;
         public Vector2Int position;
@@ -538,6 +541,7 @@ public class Entity : MonoBehaviour
         var tileObject = new SerializableEntity
         {
             name = name,
+            map = map.name,
             blueprint = Blueprint.folder + "/" + Blueprint.name,
             initiative = initiative,
             position = tile.Position,
@@ -558,6 +562,7 @@ public class Entity : MonoBehaviour
     public void Deserialize(SerializableEntity serializableEntity)
     {
         name = serializableEntity.name;
+        map = GameMaster.instance.campaign.GetMapByName(serializableEntity.map);
         Blueprint = GetEntityBlueprint(serializableEntity.blueprint);
         initiative = serializableEntity.initiative;
         tile = map.Tile(serializableEntity.position);

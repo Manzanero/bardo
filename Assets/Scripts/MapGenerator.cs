@@ -3,37 +3,9 @@ using UnityEngine;
 
 public class MapGenerator : MonoBehaviour
 {
-    public GameObject tilePrefab;
-    public TextAsset tsvMap;
-    public TextAsset jsonMap;
-
-    private GameMaster _gameMaster;
-    private Transform _mapsParent;
-    private GameObject _mapPrefab;
-    
-    private void Start()
-    {
-        _gameMaster = GameMaster.instance;
-        _mapsParent = _gameMaster.mapsParent;
-        _mapPrefab = _gameMaster.mapPrefab;
-        
-        for (var i = 0; i < _mapsParent.childCount; i++)
-            _mapsParent.GetChild(i).gameObject.SetActive(false);
-        
-        // CreateMapFromDonjon(tsvMap.text);
-        CreateMapFromJson(jsonMap.text);
-    }
-    
-
-    public void CreateMapFromJson(string textMap)
-    {
-        var serializableMap = new Map.SerializableMap();
-        JsonUtility.FromJsonOverwrite(textMap, serializableMap);
-        _gameMaster.LoadMap(serializableMap);
-    }
-    
     public void CreateMapFromDonjon(string textMap)
     {
+        var gameMaster = GameMaster.instance;
         var thisTransform = transform;
         var mapPosition = thisTransform.position;
         var mapRotation = thisTransform.rotation;
@@ -42,7 +14,7 @@ public class MapGenerator : MonoBehaviour
         var height = lines.Length;
         var width = lines[0].Split('\t').Length;
         var tiles = new Tile[width * 2, height * 2];
-        var mapGo = Instantiate(_mapPrefab, Vector3.zero, mapRotation, _mapsParent);
+        var mapGo = Instantiate(gameMaster.mapPrefab, Vector3.zero, mapRotation, gameMaster.campaign.mapsParent);
         mapGo.name = "Donjon Map";
         var map = mapGo.GetComponent<Map>();
         map.tiles = tiles;
@@ -58,7 +30,7 @@ public class MapGenerator : MonoBehaviour
                 var tilePos = new Vector3(mapPosition.x + colIndex * 2,
                     mapPosition.y,
                     mapPosition.z + rowIndex * 2);
-                var tileGo = Instantiate(tilePrefab, tilePos, mapRotation, map.tilesParent);
+                var tileGo = Instantiate(gameMaster.tilePrefab, tilePos, mapRotation, map.tilesParent);
                 tileGo.name = $"Tile-{colIndex * 2}-{rowIndex * 2}-{col}";
                 var tile = tileGo.GetComponent<Tile>();
                 tile.Position = new Vector2Int(colIndex * 2, rowIndex * 2);
@@ -68,7 +40,7 @@ public class MapGenerator : MonoBehaviour
                 tilePos = new Vector3(mapPosition.x + colIndex * 2 + 1,
                     mapPosition.y,
                     mapPosition.z + rowIndex * 2);
-                tileGo = Instantiate(tilePrefab, tilePos, mapRotation, map.tilesParent);
+                tileGo = Instantiate(gameMaster.tilePrefab, tilePos, mapRotation, map.tilesParent);
                 tileGo.name = $"Tile-{colIndex * 2 + 1}-{rowIndex * 2}-{col}";
                 tile = tileGo.GetComponent<Tile>();
                 tile.Position = new Vector2Int(colIndex * 2 + 1, rowIndex * 2);
@@ -78,7 +50,7 @@ public class MapGenerator : MonoBehaviour
                 tilePos = new Vector3(mapPosition.x + colIndex * 2,
                     mapPosition.y,
                     mapPosition.z + rowIndex * 2 + 1);
-                tileGo = Instantiate(tilePrefab, tilePos, mapRotation, map.tilesParent);
+                tileGo = Instantiate(gameMaster.tilePrefab, tilePos, mapRotation, map.tilesParent);
                 tileGo.name = $"Tile-{colIndex * 2}-{rowIndex * 2 + 1}-{col}";
                 tile = tileGo.GetComponent<Tile>();
                 tile.Position = new Vector2Int(colIndex * 2, rowIndex * 2 + 1);
@@ -88,7 +60,7 @@ public class MapGenerator : MonoBehaviour
                 tilePos = new Vector3(mapPosition.x + colIndex * 2 + 1,
                     mapPosition.y,
                     mapPosition.z + rowIndex * 2 + 1);
-                tileGo = Instantiate(tilePrefab, tilePos, mapRotation, map.tilesParent);
+                tileGo = Instantiate(gameMaster.tilePrefab, tilePos, mapRotation, map.tilesParent);
                 tileGo.name = $"Tile-{colIndex * 2 + 1}-{rowIndex * 2 + 1}-{col}";
                 tile = tileGo.GetComponent<Tile>();
                 tile.Position = new Vector2Int(colIndex * 2 + 1, rowIndex * 2 + 1);
