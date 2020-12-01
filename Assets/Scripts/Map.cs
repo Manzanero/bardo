@@ -15,6 +15,8 @@ public class Map : MonoBehaviour
 
     public Vector3 mousePosition;
     public Tile mouseTile;
+    public List<Tile> selectedTiles;
+    public List<Entity> selectedEntities;
     public List<Tile> tilesInLight = new List<Tile>();
 
     public int visionBlockerLayer;
@@ -30,16 +32,16 @@ public class Map : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.J))
         {
-            var sr = File.CreateText(@"C:\workspace\unity\bardo\Bardo\Assets\Logs\debug.txt");
-            sr.WriteLine(JsonUtility.ToJson(Serialize()));
-            sr.Close();
-            // Debug.LogWarning(ToJson());
+            // var sr = File.CreateText(@"C:\workspace\unity\bardo\Bardo\Assets\Logs\debug.txt");
+            // sr.WriteLine(JsonUtility.ToJson(Serialize()));
+            // sr.Close();
+            // // Debug.LogWarning(ToJson());
         }
         
         UpdateTiles();
     }
 
-    private void UpdateTiles()
+    public void UpdateTiles()
     {
         var allTilesInLight = new List<Tile>();
         allTilesInLight = entities
@@ -93,7 +95,7 @@ public class Map : MonoBehaviour
             Tile(new Vector2Int(position.x, position.y - 1)),
             Tile(new Vector2Int(position.x, position.y + 1)),
             Tile(new Vector2Int(position.x + 1, position.y))
-        }.Where(x => !ReferenceEquals(x, null)).ToList();
+        }.Where(x => !ReferenceEquals(x, null) && x.VisionBlocker).ToList();
     }
     
     public List<Tile> TilesInRange(Vector2Int position, float range)
@@ -169,17 +171,6 @@ public class Map : MonoBehaviour
         return new Vector3(Mathf.Cos(angleRad), 0, Mathf.Sin(angleRad));
     }
     
-    public void AddEntity(Entity entity)
-    {
-        entity.transform.parent = entitiesParent;
-        if (entity.map != null)
-            entity.map.entities.Remove(entity);
-        entities.Add(entity);
-        entity.map = this;
-        var position = entity.transform.position;
-        entity.tile = Tile(new Vector2Int((int) Mathf.Round(position.x), (int) Mathf.Round(position.z)));
-    }
-    
     [Serializable]
     public class SerializableMap
     {
@@ -197,8 +188,8 @@ public class Map : MonoBehaviour
         // tiles
         var serializableTiles = new List<Tile.SerializableTile>();
         for (var x = 0; x < width; x += 1)
-            for (var y = 0; y < height; y += 1) 
-                serializableTiles.Add(tiles[x, y].Serialize());
+        for (var y = 0; y < height; y += 1) 
+            serializableTiles.Add(tiles[x, y].Serialize());
         
         // entities
         var serializableEntities = entities.Select(entity => entity.Serialize()).ToList();
@@ -219,21 +210,24 @@ public class Map : MonoBehaviour
         tiles = new Tile[serializableMap.size.x, serializableMap.size.y];
         foreach (var serializableTile in serializableMap.tiles)
         {
-            var tileGo = Instantiate(gameMaster.tilePrefab, (Vector2) serializableTile.position, 
-                Quaternion.identity, tilesParent);
-            tileGo.name = $"Tile-{serializableTile.position.x}-{serializableTile.position.y}";
-            var tile = tileGo.GetComponent<Tile>();
+            var tile = Instantiate(gameMaster.tilePrefab, tilesParent).GetComponent<Tile>();
+            tile.name = $"Tile-{serializableTile.position.x}-{serializableTile.position.y}";
             tile.map = this;
             tile.Deserialize(serializableTile);
             tiles[serializableTile.position.x, serializableTile.position.y] = tile;
+            
+            // properties
+            tile.Shadow = true;
+            tile.Luminosity = 0.5f;
         }
 
         entities = new List<Entity>();
+
         foreach (var serializableEntity in serializableMap.entities)
         {
-            var entityGo = Instantiate(gameMaster.entityPrefab, (Vector2) serializableEntity.position, 
-                Quaternion.identity, entitiesParent);
-            var entity = entityGo.GetComponent<Entity>();
+            var entity = Instantiate(gameMaster.entityPrefab, entitiesParent).GetComponent<Entity>();
+            entity.map = this;
+            entity.tile = Tile(serializableEntity.position);
             entity.Deserialize(serializableEntity);
             entities.Add(entity);
         }

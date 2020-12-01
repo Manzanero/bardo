@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 [System.Serializable]
 [RequireComponent(typeof(MeshFilter))]
@@ -133,11 +134,19 @@ public class Tile : MonoBehaviour
 
     private void OnMouseOver()
     {
+        if (EventSystem.current.IsPointerOverGameObject()) return;  // check the eventsystem for a selected UI piece
+        if (EventSystem.current.currentSelectedGameObject) return;  // UI piece could be clicked and hold
+
         var ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
         if (!Physics.Raycast(ray, out var rayCastHit, 100f, _tilesLayerMask)) 
             return;
         map.mousePosition = rayCastHit.point;
         map.mouseTile = this;
+    }
+
+    private void OnMouseExit()
+    {
+        map.mouseTile = null;
     }
     
     [Serializable]

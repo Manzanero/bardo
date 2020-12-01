@@ -23,7 +23,7 @@ MonoBehaviour:
   bodyMesh: {fileID: -3150881098221132177, guid: f8bbfcaa83d40204288b9e2df01f8a0c, type: 3}
   scaleCorrection: 0.5
   bodyMaterial: {fileID: 2100000, guid: a63adb52c960c564ba9a1a3845f090fe, type: 2}
-  hasName: 0
+  hasName: 1
   hasHealth: 1
   hasStamina: 0
   hasMana: 0

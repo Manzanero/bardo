@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class GameMaster : MonoBehaviour
 {
@@ -22,21 +21,29 @@ public class GameMaster : MonoBehaviour
     private void Awake()
     {
         instance = this;
+        campaign = GameObject.Find("Campaign").GetComponent<Campaign>();
     }
 
     private void Start()
     {
-        campaign = GameObject.Find("Campaign").GetComponent<Campaign>();
-        
-        
         for (var i = 0; i < campaign.mapsParent.childCount; i++)
             campaign.mapsParent.GetChild(i).gameObject.SetActive(false);
     }
 
     private void Update()
     {
-        foreach (var action in actionsToDo.Where(a => a.map == campaign.activeMap.name))
-            try { ResolveAction(action); } finally { action.done = true; }
+        foreach (var action in actionsToDo)
+        {
+            try
+            {
+                ResolveAction(action);
+            }
+            finally
+            {
+                Debug.LogWarning($"Action (name={action.name}, map={action.map}) for user doesn't exist");
+                action.done = true;
+            }
+        }
 
         var actionsToDelete = actionsToDo.Where(a => a.done).ToList();
         if (actionsToDelete.Any())
@@ -66,50 +73,30 @@ public class GameMaster : MonoBehaviour
         }
     }
 
-    public void LoadMap(Map.SerializableMap serializableMap)
-    {
-        var mapName = serializableMap.name;
-        for (var i = 0; i < campaign.mapsParent.childCount; i++)
-            campaign.mapsParent.GetChild(i).gameObject.SetActive(false);
-        var mapTransform = campaign.mapsParent.Find(mapName);
-        Map map;
-        if (mapTransform != null)
-        {
-            mapTransform.gameObject.SetActive(true);
-            map = mapTransform.GetComponent<Map>();
-        }
-        else
-        {
-            var mapGo = Instantiate(mapPrefab, Vector3.zero, Quaternion.identity, campaign.mapsParent);
-            mapGo.name = serializableMap.name;
-            map = mapGo.GetComponent<Map>();
-            map.Deserialize(serializableMap);
-        }
-        campaign.activeMap = map;
-        campaign.maps.Add(map);
-    }
-
     public void CreateEntity(Entity.SerializableEntity serializableEntity)
     {
-        if (campaign.activeMap.entities.Any(e => e.name == serializableEntity.name))
+        var map = campaign.ActiveMap;
+        if (map.entities.Any(e => e.name == serializableEntity.name))
             throw new Exception($"Name already exist in map: {serializableEntity.name}");
-        var entityGo = Instantiate(entityPrefab, (Vector2) serializableEntity.position, 
-            Quaternion.identity, campaign.activeMap.entitiesParent);
-        var entity = entityGo.GetComponent<Entity>();
-        entity.map = campaign.activeMap;
+        var entity = Instantiate(entityPrefab, map.entitiesParent).GetComponent<Entity>();
+        entity.map = map;
+        entity.tile = map.Tile(serializableEntity.position);
         entity.Deserialize(serializableEntity);
         entity.map.entities.Add(entity);
     }
 
     public void ChangeEntity(Entity.SerializableEntity serializableEntity)
     {
-        var entity = campaign.activeMap.entities.Find(e => e.Name == serializableEntity.name);
+        var map = campaign.ActiveMap;
+        var entity = map.entities.Find(e => e.Name == serializableEntity.name);  
+        entity.map = map;
+        entity.tile = map.Tile(serializableEntity.position);
         entity.Deserialize(serializableEntity);
     }
 
     public void DeleteEntity(Entity.SerializableEntity serializableEntity)
     {
-        var entity = campaign.activeMap.entities.Find(e => e.Name == serializableEntity.name);
+        var entity = campaign.ActiveMap.entities.Find(e => e.Name == serializableEntity.name);
         entity.map.entities.Remove(entity);
         Destroy(entity);
     }

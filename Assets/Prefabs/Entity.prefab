@@ -1021,7 +1021,49 @@ MonoBehaviour:
   manaText: {fileID: 5338088995010217975}
   draggableBase: {fileID: 60018160536634740}
   draggableBody: {fileID: 7340472080876898475}
+  blueprint: {fileID: 0}
   map: {fileID: 0}
+  tile: {fileID: 0}
+  tilesInVision: []
+  tilesInLight: []
+  initiative: 0
+  tileOffset: {x: 0, y: 0}
+  rotation: 0
+  health: 0
+  maxHealth: 100
+  stamina: 0
+  maxStamina: 100
+  mana: 0
+  maxMana: 100
+  visionInShadows: 0
+  visionInDarkness: 0
+  hasBase: 0
+  baseSize: 0
+  baseMaterial: {fileID: 0}
+  hasBaseImage: 0
+  baseImage: {fileID: 0}
+  hasBody: 1
+  bodySize: 1
+  bodyMesh: {fileID: 0}
+  scaleCorrection: 0
+  bodyMaterial: {fileID: 0}
+  hasName: 0
+  hasHealth: 0
+  hasStamina: 0
+  hasMana: 0
+  hasVision: 0
+  hasLight: 0
+  lightRange: 0
+  hasAura: 0
+  auraRange: 0
+  auraMaterial: {fileID: 0}
+  sharedName: 1
+  sharedPosition: 1
+  sharedVision: 1
+  sharedControl: 1
+  sharedHealth: 1
+  sharedStamina: 1
+  sharedMana: 1
 --- !u!1 &8393685249053516772
 GameObject:
   m_ObjectHideFlags: 0

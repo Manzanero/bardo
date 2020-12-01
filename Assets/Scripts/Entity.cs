@@ -372,15 +372,18 @@ public class Entity : MonoBehaviour
     private void Start()
     {
         _mainCamera = Camera.main;
-        // entity.tile = Tile(new Vector2Int((int) Mathf.Round(position.x), (int) Mathf.Round(position.z)));
     }
 
     private void Update()
     {
-        if (ReferenceEquals(map, null) && !ReferenceEquals(GameMaster.instance.campaign.activeMap, null))
-            GameMaster.instance.campaign.activeMap.AddEntity(this);
         if (ReferenceEquals(map, null))
-            return;        
+            return;
+        if (ReferenceEquals(tile, null))
+        {
+            var position = transform.position;
+            tile = map.Tile(new Vector2Int((int) Mathf.Round(position.x), (int) Mathf.Round(position.z)));
+        }
+
         UpdateUi();
         UpdatePosition();
         UpdateVision();
@@ -420,13 +423,13 @@ public class Entity : MonoBehaviour
         nameCanvasTransform.position = thisTransformPosition - 0.4f * screenForward;
         
         // mouse interaction
-        if (MouseOver && Input.GetMouseButtonDown(0))
+        if (map.selectedEntities.Contains(this))
         {
             var newScale = 0.002f * Vector3.one;
             nameCanvasTransform.localScale = newScale;
             barsCanvasTransform.localScale = newScale;
         }
-        else if (Input.GetMouseButtonDown(0))
+        else
         {
             var newScale = 0.001f * Vector3.one;
             nameCanvasTransform.localScale = newScale;
@@ -442,7 +445,7 @@ public class Entity : MonoBehaviour
         if (Dragged)
         {
             _inMovement = true;
-            if (!map.mouseTile.Walkable) 
+            if (ReferenceEquals(map.mouseTile, null) || !map.mouseTile.Walkable) 
                 return;
             tile = map.mouseTile;
             ColliderEnabled = false;
@@ -562,12 +565,11 @@ public class Entity : MonoBehaviour
     public void Deserialize(SerializableEntity serializableEntity)
     {
         name = serializableEntity.name;
-        map = GameMaster.instance.campaign.GetMapByName(serializableEntity.map);
         Blueprint = GetEntityBlueprint(serializableEntity.blueprint);
         initiative = serializableEntity.initiative;
-        tile = map.Tile(serializableEntity.position);
-        transform.position = new Vector3(tile.Position.x, tile.Altitude, tile.Position.y);
         tileOffset = serializableEntity.tileOffset;
+        transform.position = new Vector3(
+            serializableEntity.position.x + tileOffset.x, 1, serializableEntity.position.y + tileOffset.y); 
         rotation = serializableEntity.rotation;
         Health = serializableEntity.health;
         MaxHealth = serializableEntity.maxHealth;

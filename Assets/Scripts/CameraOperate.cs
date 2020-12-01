@@ -35,6 +35,11 @@ public class CameraOperate : MonoBehaviour
 
     private void Update()
     {
+        if (Input.mousePosition.y >= Screen.height + 1 || 
+            Input.mousePosition.y <= - 1 || 
+            Input.mousePosition.x >= Screen.width + 1 || 
+            Input.mousePosition.x <= - 1)
+            return;
         if (!operate) 
             return;
         if (_isRotate && Input.GetMouseButtonUp(2))
