@@ -16,8 +16,9 @@ public class CameraOperate : MonoBehaviour
     [Range(0.1f, 2f)] 
     public float rotateYSpeed = 1f;
     [Tooltip("Mouse wheel press, lens translation speed")]
-    [Range(0.1f, 2f)] 
-    public float moveSpeed = 1f;
+    // [Range(0.1f, 2f)] 
+    // public float moveSpeed = 1f;
+    private float _moveSpeed = 1f;
     public bool operate = true;
     
     private bool _isRotate;
@@ -35,19 +36,30 @@ public class CameraOperate : MonoBehaviour
 
     private void Update()
     {
-        if (Input.mousePosition.y >= Screen.height + 1 || 
-            Input.mousePosition.y <= - 1 || 
-            Input.mousePosition.x >= Screen.width + 1 || 
-            Input.mousePosition.x <= - 1)
-            return;
+        var position = _mTransform.position;
+        var height = position.y;
+        _moveSpeed = 0.2f + height * 0.01f;
+        
         if (!operate) 
             return;
         if (_isRotate && Input.GetMouseButtonUp(2))
             _isRotate = false;
         if (_isMove && Input.GetMouseButtonUp(1))
             _isMove = false;
+        
+        if (!Input.GetMouseButton(2))
+            _isRotate = false;
+        if (!Input.GetMouseButton(1))
+            _isMove = false;
+        if (_isRotate && _isMove)
+            return;
+        if (Input.mousePosition.y >= Screen.height + 1 || 
+            Input.mousePosition.y <= - 1 || 
+            Input.mousePosition.x >= Screen.width + 1 || 
+            Input.mousePosition.x <= - 1)
+            return;
 
-        if (_isRotate)
+        if (_isRotate && !_isMove) 
         {
             var offset = Input.mousePosition - _mouseStart;
             
@@ -65,7 +77,7 @@ public class CameraOperate : MonoBehaviour
             }
         }
 
-        else if (Input.GetMouseButtonDown(2))
+        else if (Input.GetMouseButtonDown(2) && !_isMove)
         {
             _isRotate = true;
             _mouseStart = Input.mousePosition;
@@ -73,17 +85,17 @@ public class CameraOperate : MonoBehaviour
             _isDown = _mTransform.up.y < -0.0001f;
         }
 
-        if (_isMove)
+        if (_isMove && !_isRotate)
         {
             var offset = Input.mousePosition - _mouseStart;
             var sceneRotationY = transform.rotation.eulerAngles.y;
             var sceneForward = Quaternion.Euler(0, sceneRotationY, 0) * Vector3.forward;
             var sceneRight = Quaternion.Euler(0, sceneRotationY, 0) * Vector3.right;
-            _mTransform.position = _traStart + moveSpeed * -offset.y * 0.1f * sceneForward +
-                                               moveSpeed * -offset.x * 0.1f * sceneRight;
+            _mTransform.position = _traStart + _moveSpeed * -offset.y * 0.1f * sceneForward +
+                                               _moveSpeed * -offset.x * 0.1f * sceneRight;
         }
 
-        else if (Input.GetMouseButtonDown(1))
+        else if (Input.GetMouseButtonDown(1) && !_isRotate)
         {
             _isMove = true;
             _mouseStart = Input.mousePosition;
@@ -95,7 +107,6 @@ public class CameraOperate : MonoBehaviour
         if (Math.Abs(scroll) < 0.0001f)
             return;
         
-        var position = _mTransform.position;
         position += scrollSpeed * scroll * 1000f * Time.deltaTime * Vector3.down;
         position.y = Mathf.Clamp(position.y, minY, maxY);
         _mTransform.position = position;

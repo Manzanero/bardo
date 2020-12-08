@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using OutlineEffect.OutlineEffect;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -25,355 +26,383 @@ public class Entity : MonoBehaviour
     public Text manaText;
     public Draggable draggableBase;
     public Draggable draggableBody;
-
+    public OutlineMesh baseOutline;
     
     public EntityBlueprint blueprint;
     public Map map;
     public Tile tile;
+    public string id;
     public List<Tile> tilesInVision;
     public List<Tile> tilesInLight;
+    public List<Aura> auras;
 
-    [SerializeField] private float initiative;
-    [SerializeField] private Vector2 tileOffset;
-    [SerializeField] private float rotation;
-    [SerializeField] private float health;
-    [SerializeField] private float maxHealth = 100;
-    [SerializeField] private float stamina;
-    [SerializeField] private float maxStamina = 100;
-    [SerializeField] private float mana;
-    [SerializeField] private float maxMana = 100;
-    [SerializeField] private float visionInShadows;
-    [SerializeField] private float visionInDarkness;
+    #region ui
     
-    // Blueprint
-    [SerializeField] private bool hasBase;
-    [SerializeField] private float baseSize;
-    [SerializeField] private Material baseMaterial;
-    [SerializeField] private bool hasBaseImage;
-    [SerializeField] private Sprite baseImage;
-    [SerializeField] private bool hasBody = true;
-    [SerializeField] private float bodySize = 1f;
-    [SerializeField] private Mesh bodyMesh;
-    [SerializeField] private float scaleCorrection;
-    [SerializeField] private Material bodyMaterial;
-    [SerializeField] private bool hasName;
-    [SerializeField] private bool hasHealth;
-    [SerializeField] private bool hasStamina;
-    [SerializeField] private bool hasMana;
-    [SerializeField] private bool hasVision;
-    [SerializeField] private bool hasLight;
-    [SerializeField] private float lightRange;
-    [SerializeField] private bool hasAura;
-    [SerializeField] private float auraRange;
-    [SerializeField] private Material auraMaterial;
-
-    // Permissions
-    [SerializeField] private bool sharedName;
-    [SerializeField] private bool sharedPosition;
-    [SerializeField] private bool sharedVision;
-    [SerializeField] private bool sharedControl;
-    [SerializeField] private bool sharedHealth = true;
-    [SerializeField] private bool sharedStamina = true;
-    [SerializeField] private bool sharedMana = true;
-
-    private Camera _mainCamera;
-    private Tile _cachedTile;
-    private bool _inMovement;
-    private bool _resetVision;
+    private bool _hasName;
+    private bool _hasInitiative;
+    private float _initiative;
+    private bool _hasHealth;
+    private float _health;
+    private float _maxHealth = 100;
+    private bool _hasStamina;
+    private float _stamina;
+    private float _maxStamina = 100;
+    private bool _hasMana;
+    private float _mana;
+    private float _maxMana = 100;
+    private bool _hasVision;
+    private bool _hasShadowVision;
+    private float _shadowVisionRange;
+    private bool _hasDarkVision;
+    private bool _hasLight;
+    private float _lightRange;
+    
+    public bool HasName
+    {
+        get => _hasName;
+        set { nameCanvas.gameObject.SetActive(value); _hasName = value; }
+    }
 
     public string Name
     {
-        get => name;
-        set
-        {
-            nameText.text = value;
-            name = value;
-        }
+        get => name; 
+        set { nameText.text = value; name = value; }
+    }
+    
+    public bool HasInitiative { get => _hasInitiative; set => _hasInitiative = value; }
+    
+    public float Initiative { get => _initiative; set => _initiative = value; }
+
+    public bool HasHealth
+    {
+        get => _hasHealth;
+        set { healthBar.gameObject.SetActive(value); _hasHealth = value; }
     }
 
+    public bool HasStamina
+    {
+        get => _hasStamina;
+        set { staminaBar.gameObject.SetActive(value); _hasStamina = value; }
+    }
+
+    public bool HasMana
+    {
+        get => _hasMana;
+        set { manaBar.gameObject.SetActive(value); _hasMana = value; }
+    }
+    
     public float Health
     {
-        get => health;
+        get => _health;
         set
         {
-            healthImage.fillAmount = value / maxHealth;
-            healthText.text = $"{value} / {maxHealth}";
-            health = value;
+            healthImage.fillAmount = value / _maxHealth;
+            healthText.text = $"{value} / {_maxHealth}";
+            _health = value;
         }
     }
-
+    
     public float MaxHealth
     {
-        get => maxHealth;
+        get => _maxHealth;
         set
         {
-            healthImage.fillAmount = health / value;
-            healthText.text = $"{health} / {value}";
-            maxHealth = value;
+            healthImage.fillAmount = _health / value;
+            healthText.text = $"{_health} / {value}";
+            _maxHealth = value;
         }
     }
-
+    
     public float Stamina
     {
-        get => stamina;
+        get => _stamina;
         set
         {
-            staminaImage.fillAmount = value / maxStamina;
-            staminaText.text = $"{value} / {maxStamina}";
-            stamina = value;
+            staminaImage.fillAmount = value / _maxStamina;
+            staminaText.text = $"{value} / {_maxStamina}";
+            _stamina = value;
         }
     }
-
+    
     public float MaxStamina
     {
-        get => maxStamina;
+        get => _maxStamina;
         set
         {
-            staminaImage.fillAmount = stamina / value;
-            staminaText.text = $"{stamina} / {value}";
-            maxStamina = value;
+            staminaImage.fillAmount = _stamina / value;
+            staminaText.text = $"{_stamina} / {value}";
+            _maxStamina = value;
         }
     }
-
+    
     public float Mana
     {
-        get => mana;
+        get => _mana;
         set
         {
-            manaImage.fillAmount = value / maxMana;
-            manaText.text = $"{value}/{maxMana}";
-            mana = value;
+            manaImage.fillAmount = value / _maxMana;
+            manaText.text = $"{value}/{_maxMana}";
+            _mana = value;
         }
     }
 
     public float MaxMana
     {
-        get => maxMana;
+        get => _maxMana;
         set
         {
-            manaImage.fillAmount = mana / value;
-            manaText.text = $"{mana} / {value}";
-            maxMana = value;
+            manaImage.fillAmount = _mana / value;
+            manaText.text = $"{_mana} / {value}";
+            _maxMana = value;
         }
     }
-
-    public EntityBlueprint Blueprint
+    
+    public bool HasVision
     {
-        get => blueprint;
-        set
-        {
-            blueprint = value;
-            HasBase = value.hasBase;
-            baseSize = value.baseSize; // BaseSize = value.baseSize;
-            BaseMaterial = value.baseMaterial;
-            hasBaseImage = value.hasBaseImage; // HasBaseImage = value.hasBaseImage;
-            baseImage = value.baseImage; // BaseImage = value.baseImage;
-            HasBody = value.hasBody;
-            BodySize = value.bodySize;
-            BodyMesh = value.bodyMesh;
-            ScaleCorrection = value.scaleCorrection;
-            BodyMaterial = value.bodyMaterial;
-            HasName = value.hasName;
-            HasHealth = value.hasHealth;
-            HasStamina = value.hasStamina;
-            HasMana = value.hasMana;
-            HasVision = value.hasVision;
-            HasLight = value.hasLight;
-            LightRange = value.lightRange;
-            hasAura = value.hasAura; // HasAura = value.hasAura;
-            auraRange = value.auraRange; // AuraRange = value.auraRange;
-            auraMaterial = value.auraMaterial; // AuraMaterial = value.auraMaterial;
+        get => _hasVision;
+        set { _hasVision = value; _resetVision = true; }
+    }
 
-            _resetVision = true;
-        }
+    public bool HasShadowVision
+    {
+        get => _hasShadowVision;
+        set { _hasShadowVision = value; _resetVision = true; }
+    }
+
+    public float ShadowVisionRange
+    {
+        get => _shadowVisionRange;
+        set { _shadowVisionRange = value; _resetVision = true; }
+    }
+
+    public bool HasDarkVision
+    {
+        get => _hasDarkVision;
+        set { _hasDarkVision = value; _resetVision = true; }
+    }
+
+    public bool HasLight
+    {
+        get => _hasLight;
+        set { _hasLight = value; _resetVision = true; }
+    }
+
+    public float LightRange
+    {
+        get => _lightRange;
+        set { _lightRange = value; _resetVision = true; }
+    }
+    
+    #endregion
+
+    #region token
+    
+    private bool _hasBase;
+    private float _baseSize;
+    private Color _baseColor;
+    private bool _hasBaseImage;
+    private string _baseImageResource;
+    private bool _hasBody = true;
+    private float _bodySize = 1f;
+    private string _bodyMeshResource;
+    private float _scaleCorrection = 1f;
+    private string _bodyMaterialResource;
+
+    public Vector2Int Position
+    {
+        get => tile.Position;
+    }
+
+    public Vector2 TileOffset
+    {
+        get
+        {
+            var pos = transform.position;
+            return new Vector2(pos.x - Mathf.Round(pos.x), pos.z - Mathf.Round(pos.z));
+        } 
+    }
+
+    public float Rotation
+    {
+        get => transform.localEulerAngles.y;
+        set => transform.localEulerAngles = new Vector3(0, value, 0);
     }
 
     public bool HasBase
     {
-        get => hasBase;
+        get => _hasBase;
         set
         {
             var position = transform.position;
             baseMeshRenderer.transform.position = position + 0.05f * Vector3.up;
             bodyMeshRenderer.transform.position = value ? position + 0.1f * Vector3.up : position;
             baseMeshRenderer.gameObject.SetActive(value);
-            hasBase = value;
+            _hasBase = value;
         }
     }
 
-    public Material BaseMaterial
+    public float BaseSize
     {
-        get => baseMaterial;
+        get => _baseSize;
         set
         {
-            baseMeshRenderer.material = value;
-            baseMaterial = value;
+            var t = baseMeshRenderer.transform;
+            t.localScale = new Vector3(value, t.localScale.y, value);
+            _baseSize = value;
         }
+    }
+
+    public Color BaseColor
+    {
+        get => _baseColor;
+        set => _baseColor = value;
+    }
+
+    public bool HasBaseImage
+    {
+        get => _hasBaseImage;
+        set => _hasBaseImage = value;
+    }
+
+    public string BaseImageResource
+    {
+        get => _baseImageResource;
+        set => _baseImageResource = value;
     }
 
     public bool HasBody
     {
-        get => hasBody;
-        set
-        {
-            bodyMeshRenderer.gameObject.SetActive(hasBody);
-            hasBody = value;
-        }
+        get => _hasBody;
+        set { bodyMeshRenderer.gameObject.SetActive(value); _hasBody = value; }
     }
 
     public float BodySize
     {
-        get => bodySize;
-        set => bodySize = value;
+        get => _bodySize;
+        set => _bodySize = value;
     }
 
-    public Mesh BodyMesh
+    public string BodyMeshResource
     {
-        get => bodyMesh;
+        get => _bodyMeshResource;
         set
         {
-            bodyMeshFilter.mesh = value;
-            bodyMesh = value;
+            // bodyMeshFilter.mesh = value; 
+            _bodyMeshResource = value;
         }
     }
 
     public float ScaleCorrection
     {
-        get => scaleCorrection;
+        get => _scaleCorrection;
         set
         {
             bodyMeshRenderer.transform.localScale = Vector3.one * value;
-            scaleCorrection = value;
+            _scaleCorrection = value;
         }
     }
 
-    public Material BodyMaterial
+    public string BodyMaterialResource
     {
-        get => bodyMaterial;
-        set
-        {
-            bodyMeshRenderer.material = value;
-            bodyMaterial = value;
-        }
+        get => _bodyMaterialResource;
+        set { _bodyMaterialResource = value; }
     }
+    
+    #endregion 
 
-    public bool HasName
-    {
-        get => hasName;
-        set
-        {
-            nameCanvas.gameObject.SetActive(value);
-            hasName = value;
-        }
-    }
-
-    public bool HasHealth
-    {
-        get => hasHealth;
-        set
-        {
-            healthBar.gameObject.SetActive(value);
-            hasHealth = value;
-        }
-    }
-
-    public bool HasStamina
-    {
-        get => hasStamina;
-        set
-        {
-            staminaBar.gameObject.SetActive(value);
-            hasStamina = value;
-        }
-    }
-
-    public bool HasMana
-    {
-        get => hasMana;
-        set
-        {
-            manaBar.gameObject.SetActive(value);
-            hasMana = value;
-        }
-    }
-
-    public bool HasVision
-    {
-        get => hasVision;
-        set
-        {
-            hasVision = value;
-            _resetVision = true;
-        }
-    }
-
-    public bool HasLight
-    {
-        get => hasLight;
-        set
-        {
-            hasLight = value;
-            _resetVision = true;
-        }
-    }
-
-    public float LightRange
-    {
-        get => lightRange;
-        set
-        {
-            lightRange = value;
-            _resetVision = true;
-        }
-    }
-
+    #region permissions
+    
+    private bool _sharedName = false;
+    private bool _sharedPosition = true;
+    private bool _sharedVision = false;
+    private bool _sharedControl = false;
+    private bool _sharedHealth = false;
+    private bool _sharedStamina = false;
+    private bool _sharedMana = false;
+    
     public bool SharedName
     {
-        get => sharedName;
-        set => sharedName = value;
+        get => _sharedName;
+        set => _sharedName = value;
     }
-
+    
     public bool SharedPosition
     {
-        get => sharedPosition;
-        set
-        {
-            sharedPosition = value;
-            _resetVision = true;
-        }
+        get => _sharedPosition;
+        set { _sharedPosition = value; _resetVision = true; }
     }
 
     public bool SharedVision
     {
-        get => sharedVision;
-        set
-        {
-            sharedVision = value;
-            _resetVision = true;
-        }
+        get => _sharedVision;
+        set { _sharedVision = value; _resetVision = true; }
     }
 
     public bool SharedControl
     {
-        get => sharedControl;
-        set
-        {
-            sharedControl = value;
-            _resetVision = true;
-        }
+        get => _sharedControl; 
+        set { _sharedControl = value; _resetVision = true; }
     }
 
-    public bool SharedHealth { get => sharedHealth; set => sharedHealth = value; }
+    public bool SharedHealth { get => _sharedHealth; set => _sharedHealth = value; }
 
-    public bool SharedStamina { get => sharedStamina; set => sharedStamina = value; }
+    public bool SharedStamina { get => _sharedStamina; set => _sharedStamina = value; }
 
-    public bool SharedMana { get => sharedMana; set => sharedMana = value; }
+    public bool SharedMana { get => _sharedMana; set => _sharedMana = value; }
+
+    public void RefreshSharedProperties()
+    {
+        if (GameMaster.master)
+        {
+            SharedName = true;
+            SharedPosition = true;
+            SharedVision = true;
+            SharedControl = true;
+            SharedHealth = true;
+            SharedStamina = true;
+            SharedMana = true;
+            return;
+        }
+        
+        Debug.Log(map.properties.Count);
+        Debug.Log(map.properties[0].value);
+        
+        foreach (var property in map.properties.Where(x => x.value == id))
+        {
+            switch (property.name)
+            {
+                case "SHARED_NAME":       SharedName = true;      break;
+                case "UNSHARED_NAME":     SharedName = false;     break;
+                case "SHARED_POSITION":   SharedPosition = true;  break;
+                case "UNSHARED_POSITION": SharedPosition = false; break;
+                case "SHARED_VISION":     SharedVision = true;    break;
+                case "UNSHARED_VISION":   SharedVision = false;   break;
+                case "SHARED_CONTROL":    SharedControl = true;   break;
+                case "UNSHARED_CONTROL":  SharedControl = false;  break;
+                case "SHARED_HEALTH":     SharedHealth = true;    break;
+                case "UNSHARED_HEALTH":   SharedHealth = false;   break;
+                case "SHARED_STAMINA":    SharedStamina = true;   break;
+                case "UNSHARED_STAMINA":  SharedStamina = false;  break;
+                case "SHARED_MANA":       SharedMana = true;      break;
+                case "UNSHARED_MANA":     SharedMana = false;     break;
+            }
+        }
+    }
+    
+    #endregion
+
+    private Camera _mainCamera;
+    private Tile _cachedTile;
+    private bool _inMovement;
+    private bool _resetVision;
 
     private void Start()
     {
         _mainCamera = Camera.main;
     }
 
+    #region Update
+    
     private void Update()
     {
         if (ReferenceEquals(map, null))
@@ -383,11 +412,18 @@ public class Entity : MonoBehaviour
             var position = transform.position;
             tile = map.Tile(new Vector2Int((int) Mathf.Round(position.x), (int) Mathf.Round(position.z)));
         }
-
+        
+        UpdateSelection();
         UpdateUi();
         UpdatePosition();
         UpdateVision();
         UpdateLuminosity();
+    }
+
+    private void UpdateSelection()
+    {
+        if (Clicked)
+            map.selectedEntities = new List<Entity>{this};
     }
 
     private void UpdateUi()
@@ -425,15 +461,17 @@ public class Entity : MonoBehaviour
         // mouse interaction
         if (map.selectedEntities.Contains(this))
         {
-            var newScale = 0.002f * Vector3.one;
-            nameCanvasTransform.localScale = newScale;
-            barsCanvasTransform.localScale = newScale;
+            // var newScale = 0.003f * Vector3.one;
+            // nameCanvasTransform.localScale = newScale;
+            // barsCanvasTransform.localScale = newScale;
+            baseOutline.enabled = true;
         }
         else
         {
-            var newScale = 0.001f * Vector3.one;
-            nameCanvasTransform.localScale = newScale;
-            barsCanvasTransform.localScale = newScale;
+            // var newScale = 0.001f * Vector3.one;
+            // nameCanvasTransform.localScale = newScale;
+            // barsCanvasTransform.localScale = newScale;
+            baseOutline.enabled = false;
         }
     }
 
@@ -445,13 +483,15 @@ public class Entity : MonoBehaviour
         if (Dragged)
         {
             _inMovement = true;
-            if (ReferenceEquals(map.mouseTile, null) || !map.mouseTile.Walkable) 
+            if (!map.mouseTile || !map.mouseTile.Walkable) 
                 return;
+            
             tile = map.mouseTile;
             ColliderEnabled = false;
             transform.position = new Vector3(map.mousePosition.x, tile.Altitude + 0.2f, map.mousePosition.z);
             if (tile == _cachedTile)
                 return;
+            
             _cachedTile = tile;
             _resetVision = true;
         }
@@ -462,11 +502,11 @@ public class Entity : MonoBehaviour
 
             if (!_inMovement) 
                 return;
+            
             _inMovement = false;
-            GameMaster.instance.RegisterAction(new Action
-            {
-                map = map.name,
+            GameMaster.instance.RegisterAction(new Action {
                 name = GameMaster.ActionNames.ChangeEntity,
+                map = map.mapId,
                 entities = new List<SerializableEntity>{Serialize()}
             });
         }
@@ -497,45 +537,69 @@ public class Entity : MonoBehaviour
     {
         if (SharedPosition)
         {
-            baseMeshRenderer.gameObject.SetActive(tile.Explored || SharedControl);
-            bodyMeshRenderer.gameObject.SetActive(tile.Explored || SharedControl);
+            baseMeshRenderer.gameObject.SetActive(HasBase && (tile.Explored || SharedControl));
+            bodyMeshRenderer.gameObject.SetActive(HasBody && (tile.Explored || SharedControl));
         }
         else
         {
             baseMeshRenderer.gameObject.SetActive(false);
             bodyMeshRenderer.gameObject.SetActive(false);
+            return;
         }
-        var tileLuminosity = tile.Luminosity;
-        var baseColor = baseMaterial.color;
-        baseMeshRenderer.material.color = new Color(baseColor.r * tileLuminosity,baseColor.g * tileLuminosity,
-            baseColor.b * tileLuminosity);
-        bodyMeshRenderer.material.color = new Color(tileLuminosity,tileLuminosity,tileLuminosity);
+        var tl = tile.Luminosity;
+        var material = baseMeshRenderer.material;
+        material.color = new Color(BaseColor.r * tl, BaseColor.g * tl, BaseColor.b * tl);
+        bodyMeshRenderer.material.color = new Color(tl,tl,tl);
     }
+    #endregion
     
     private bool Dragged => draggableBody.Dragged || draggableBase.Dragged;
     
     private bool MouseOver => draggableBody.MouseOver || draggableBase.MouseOver;
+    
+    private bool Clicked => MouseOver && Input.GetMouseButtonDown(0);
 
     private bool ColliderEnabled { set => (baseMeshCollider.enabled, bodyMeshCollider.enabled) = (value, value); }
+
+    #region Serialization
     
     [Serializable]
     public class SerializableEntity
     {
+        public string id;
+        public bool hasName;
         public string name;
-        public string map;
-        public string blueprint;
+        public bool hasInitiative;
         public float initiative;
+        public bool hasHealth;
+        public float health;
+        public float maxHealth;
+        public bool hasStamina;
+        public float stamina;
+        public float maxStamina;
+        public bool hasMana;
+        public float mana;
+        public float maxMana;
+        public bool hasVision;
+        public bool hasShadowVision;
+        public float shadowVisionRange;
+        public bool hasDarkVision;
+        public bool hasLight;
+        public float lightRange;
+        
         public Vector2Int position;
         public Vector2 tileOffset;
         public float rotation;
-        public float health;
-        public float maxHealth;
-        public float stamina;
-        public float maxStamina;
-        public float mana;
-        public float maxMana;
-        public float visionInShadows;
-        public float visionInDarkness;
+        public bool hasBase;
+        public float baseSize;
+        public Color baseColor;
+        public bool hasBaseImage;
+        public string baseImageResource;
+        public bool hasBody;
+        public float bodySize;
+        public string bodyMeshResource;
+        public float scaleCorrection;
+        public string bodyMaterialResource;
     }
     
 
@@ -543,47 +607,88 @@ public class Entity : MonoBehaviour
     {
         var tileObject = new SerializableEntity
         {
+            id = id,
+            hasName = HasName,
             name = name,
-            map = map.name,
-            blueprint = Blueprint.folder + "/" + Blueprint.name,
-            initiative = initiative,
-            position = tile.Position,
-            tileOffset = tileOffset,
-            rotation = rotation,
+            hasInitiative = HasInitiative,
+            initiative = Initiative,
+            hasHealth = HasHealth,
             health = Health,
             maxHealth = MaxHealth,
+            hasStamina = HasStamina,
             stamina = Stamina,
             maxStamina = MaxStamina,
+            hasMana = HasMana,
             mana = Mana,
             maxMana = MaxMana,
-            visionInShadows = visionInShadows,
-            visionInDarkness = visionInDarkness,
+            hasVision = HasVision,
+            hasShadowVision = HasShadowVision,
+            shadowVisionRange = ShadowVisionRange,
+            hasDarkVision = HasDarkVision,
+            hasLight = HasLight,
+            lightRange = LightRange,
+            
+            position = Position,
+            tileOffset = TileOffset,
+            rotation = Rotation,
+            hasBase = HasBase,
+            baseSize = BaseSize,
+            baseColor = BaseColor,
+            hasBaseImage = HasBaseImage,
+            baseImageResource = BaseImageResource,
+            hasBody = HasBody,
+            bodySize = BodySize,
+            bodyMeshResource = BodyMeshResource,
+            scaleCorrection = ScaleCorrection,
+            bodyMaterialResource = BodyMaterialResource
         };
         return tileObject;
     }
 
     public void Deserialize(SerializableEntity serializableEntity)
     {
-        name = serializableEntity.name;
-        Blueprint = GetEntityBlueprint(serializableEntity.blueprint);
-        initiative = serializableEntity.initiative;
-        tileOffset = serializableEntity.tileOffset;
-        transform.position = new Vector3(
-            serializableEntity.position.x + tileOffset.x, 1, serializableEntity.position.y + tileOffset.y); 
-        rotation = serializableEntity.rotation;
+        id = serializableEntity.id;
+        HasName = serializableEntity.hasName;
+        Name = serializableEntity.name;
+        HasInitiative = serializableEntity.hasInitiative;
+        Initiative = serializableEntity.initiative;
+        HasHealth = serializableEntity.hasHealth;
         Health = serializableEntity.health;
         MaxHealth = serializableEntity.maxHealth;
+        HasStamina = serializableEntity.hasStamina;
         Stamina = serializableEntity.stamina;
         MaxStamina = serializableEntity.maxStamina;
+        HasMana = serializableEntity.hasMana;
         Mana = serializableEntity.mana;
         MaxMana = serializableEntity.maxMana;
-        visionInShadows = serializableEntity.visionInShadows;
-        visionInDarkness = serializableEntity.visionInDarkness;
+        HasVision = serializableEntity.hasVision;
+        HasShadowVision = serializableEntity.hasShadowVision;
+        ShadowVisionRange = serializableEntity.shadowVisionRange;
+        HasDarkVision = serializableEntity.hasDarkVision;
+        HasLight = serializableEntity.hasLight;
+        LightRange = serializableEntity.lightRange;
+        Rotation = serializableEntity.rotation;
+        HasBase = serializableEntity.hasBase;
+        BaseSize = serializableEntity.baseSize;
+        BaseColor = serializableEntity.baseColor;
+        HasBaseImage = serializableEntity.hasBaseImage;
+        BaseImageResource = serializableEntity.baseImageResource;
+        HasBody = serializableEntity.hasBody;
+        BodySize = serializableEntity.bodySize;
+        BodyMeshResource = serializableEntity.bodyMeshResource;
+        ScaleCorrection = serializableEntity.scaleCorrection;
+        BodyMaterialResource = serializableEntity.bodyMaterialResource;
+        
+        tile = map.Tile(serializableEntity.position);
+        transform.position = new Vector3(
+            tile.Position.x + serializableEntity.tileOffset.x, tile.Altitude, 
+            tile.Position.y + serializableEntity.tileOffset.y); 
     }
 
-    private static EntityBlueprint GetEntityBlueprint(string path)
+    private static T GetResource<T>(string path)
     {
-        return Resources.LoadAll($"Blueprints/Entities/{path}", 
-            typeof(EntityBlueprint)).Cast<EntityBlueprint>().ToArray()[0];
+        return Resources.LoadAll(path, typeof(T)).Cast<T>().ToArray()[0];
     }
+    
+    #endregion
 }

@@ -4,7 +4,6 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-[System.Serializable]
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
 [RequireComponent(typeof(MeshCollider))]
@@ -18,41 +17,41 @@ public class Tile : MonoBehaviour
     public Map map;
 
     private Vector2Int _position;
-    [SerializeField] private float rotation;
-    [SerializeField] private bool explored;
+    private float _rotation;
+    private bool _explored;
     
     // Blueprint
-    [SerializeField] private float altitude;
-    [SerializeField] private bool walkable;
-    [SerializeField] private bool visionBlocker;
+    private float _altitude;
+    private bool _walkable;
+    private bool _visionBlocker;
     
     // calculated
-    [SerializeField] private bool shadow;
-    [SerializeField] private bool vision;
-    [SerializeField] private float luminosity;
+    private bool _shadow;
+    private bool _vision;
+    private float _luminosity;
     
-    private Camera _mainCamera;
+    // private Camera _mainCamera;
     private int _tilesLayerMask;
     
     public float Altitude
     {
-        get => altitude;
-        set => altitude = value;
+        get => _altitude;
+        set => _altitude = value;
     }
     
     public bool Walkable
     {
-        get => walkable;
-        set => walkable = value;
+        get => _walkable;
+        set => _walkable = value;
     }
     
     public bool VisionBlocker
     {
-        get => visionBlocker;
+        get => _visionBlocker;
         set { 
             // gameObject.layer = value ? map.visionBlockerLayer : map.visionLayer; 
             gameObject.layer = value ? 9 : 8; 
-            visionBlocker = value; 
+            _visionBlocker = value; 
         } 
     }
     
@@ -86,68 +85,68 @@ public class Tile : MonoBehaviour
 
     public float Rotation
     {
-        get => rotation;
+        get => _rotation;
         set 
         {
             transform.eulerAngles = new Vector3(0, value, 0);
-            rotation = value;
+            _rotation = value;
         }
     }
 
     public bool Shadow
     {
-        get => shadow;
-        set => shadow = value;
+        get => _shadow;
+        set => _shadow = value;
     }
 
     public bool Vision
     {
-        get => vision;
-        set => vision = value;
+        get => _vision;
+        set => _vision = value;
     }
 
     public bool Explored
     {
-        get => explored;
+        get => _explored;
         set 
         {
             meshRenderer.enabled = value;
-            explored = value;
+            _explored = value;
         }
     }
 
     public float Luminosity
     {
-        get => luminosity;
+        get => _luminosity;
         set
         {
             meshRenderer.material.color = new Color(value,value,value);
-            luminosity = value;
+            _luminosity = value;
         }
     }
 
-    private void Start()
-    {
-        _mainCamera = Camera.main;     
-        _tilesLayerMask = LayerMask.GetMask("Tiles", "Vision Blocker");
-    }
+    // private void Start()
+    // {
+    //     _mainCamera = Camera.main;     
+    //     // _tilesLayerMask = LayerMask.GetMask("Tiles", "Vision Blocker");
+    // }
 
-    private void OnMouseOver()
-    {
-        if (EventSystem.current.IsPointerOverGameObject()) return;  // check the eventsystem for a selected UI piece
-        if (EventSystem.current.currentSelectedGameObject) return;  // UI piece could be clicked and hold
-
-        var ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out var rayCastHit, 100f, _tilesLayerMask)) 
-            return;
-        map.mousePosition = rayCastHit.point;
-        map.mouseTile = this;
-    }
-
-    private void OnMouseExit()
-    {
-        map.mouseTile = null;
-    }
+    // private void OnMouseOver()
+    // {
+    //     if (GameMaster.instance.mouseOverUi) 
+    //         return;
+    //     
+    //     var ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
+    //     if (!Physics.Raycast(ray, out var rayCastHit, 100f, _tilesLayerMask)) 
+    //         return;
+    //     map.mousePosition = rayCastHit.point;
+    //     map.mouseTile = this;
+    // }
+    //
+    // private void OnMouseExit()
+    // {
+    //     map.mouseTile = null;
+    // }
     
     [Serializable]
     public class SerializableTile

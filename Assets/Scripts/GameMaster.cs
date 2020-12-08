@@ -2,58 +2,69 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class GameMaster : MonoBehaviour
 {
     public GameObject mapPrefab;
     public GameObject tilePrefab;
     public GameObject entityPrefab;
+    
+    public GameObject navigationPanel;
 
-    public string player;
-    public string password;
-    public bool master;
+    public static bool debugging = true;
+    public static string player;
+    public static string password;
+    public static bool master;
+    
     public Campaign campaign;
     public List<Action> actionsToDo = new List<Action>();
     public List<Action> actionsDone = new List<Action>();
+    public bool mouseOverUi;
+    public bool currentSelectedGameObject;
     
     public static GameMaster instance;
 
     private void Awake()
     {
         instance = this;
-        campaign = GameObject.Find("Campaign").GetComponent<Campaign>();
     }
 
     private void Start()
     {
-        for (var i = 0; i < campaign.mapsParent.childCount; i++)
-            campaign.mapsParent.GetChild(i).gameObject.SetActive(false);
+        if (!master)
+            navigationPanel.SetActive(false);
+
+        // deletes placeholder map
+        foreach(Transform child in campaign.mapsParent) Destroy(child.gameObject);
     }
 
     private void Update()
     {
-        foreach (var action in actionsToDo)
-        {
-            try
-            {
-                ResolveAction(action);
-            }
-            finally
-            {
-                Debug.LogWarning($"Action (name={action.name}, map={action.map}) for user doesn't exist");
-                action.done = true;
-            }
-        }
+        UpdateMouse();
+        UpdateActions();
+    }
 
+    private void UpdateMouse()
+    {
+        var current = EventSystem.current;
+        mouseOverUi = current.IsPointerOverGameObject();
+        currentSelectedGameObject = current.currentSelectedGameObject;
+    }
+
+    private void UpdateActions()
+    {
+        foreach (var action in actionsToDo)
+            ResolveAction(action);
+        
         var actionsToDelete = actionsToDo.Where(a => a.done).ToList();
         if (actionsToDelete.Any())
             actionsToDo.Remove(actionsToDelete[0]);
     }
-
+    
     public static class ActionNames
     {
         // entity actions
-        public const string CreateEntity = "CreateEntity";
         public const string ChangeEntity = "ChangeEntity";
         public const string DeleteEntity = "DeleteEntity";
     }
@@ -64,40 +75,55 @@ public class GameMaster : MonoBehaviour
 
     public void ResolveAction(Action action)
     {
-        switch (action.name)
+
+        try
         {
-            // entity actions
-            case ActionNames.CreateEntity: CreateEntity(action.entities[0]); break;
-            case ActionNames.ChangeEntity: ChangeEntity(action.entities[0]); break;
-            case ActionNames.DeleteEntity: DeleteEntity(action.entities[0]); break;
+            if (action.map != null && action.map != campaign.ActiveMap.mapId)
+                return;
+            
+            switch (action.name)
+            {
+                // entity actions
+                case ActionNames.ChangeEntity:
+                    foreach (var entity in action.entities) ChangeEntity(entity);
+                    break;
+                case ActionNames.DeleteEntity:
+                    foreach (var entity in action.entities) DeleteEntity(entity);
+                    break;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Action (name={action.name}, map={action.map}) throws error: {e}");
+        }
+        finally
+        {
+            action.done = true;
         }
     }
 
-    public void CreateEntity(Entity.SerializableEntity serializableEntity)
+    private void ChangeEntity(Entity.SerializableEntity serializableEntity)
     {
         var map = campaign.ActiveMap;
-        if (map.entities.Any(e => e.name == serializableEntity.name))
-            throw new Exception($"Name already exist in map: {serializableEntity.name}");
-        var entity = Instantiate(entityPrefab, map.entitiesParent).GetComponent<Entity>();
-        entity.map = map;
-        entity.tile = map.Tile(serializableEntity.position);
-        entity.Deserialize(serializableEntity);
-        entity.map.entities.Add(entity);
-    }
-
-    public void ChangeEntity(Entity.SerializableEntity serializableEntity)
-    {
-        var map = campaign.ActiveMap;
-        var entity = map.entities.Find(e => e.Name == serializableEntity.name);  
-        entity.map = map;
-        entity.tile = map.Tile(serializableEntity.position);
+        var entity = map.entities.FirstOrDefault(x => x.id == serializableEntity.id);
+        if (entity == null)
+        {
+            entity = Instantiate(entityPrefab, map.entitiesParent).GetComponent<Entity>();
+            entity.map = map;  
+            map.entities.Add(entity);
+        }
         entity.Deserialize(serializableEntity);
     }
 
-    public void DeleteEntity(Entity.SerializableEntity serializableEntity)
+    private void DeleteEntity(Entity.SerializableEntity serializableEntity)
     {
-        var entity = campaign.ActiveMap.entities.Find(e => e.Name == serializableEntity.name);
-        entity.map.entities.Remove(entity);
-        Destroy(entity);
+        var map = campaign.ActiveMap;
+        var entity = map.entities.FirstOrDefault(x => x.id == serializableEntity.id);
+        if (entity == null)
+            return;
+        
+        map.entities.Remove(entity);
+        map.selectedEntities.Remove(entity);
+        Destroy(entity.gameObject);
     }
 }

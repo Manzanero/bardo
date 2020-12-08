@@ -1,6 +1,7 @@
-﻿using System;
+﻿#pragma warning disable 0649
+
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -10,20 +11,32 @@ public class Map : MonoBehaviour
     public Transform entitiesParent;
     public MapBlueprint blueprint;
     
+    public string mapId;
     public Tile[,] tiles;
     public List<Entity> entities;
 
     public Vector3 mousePosition;
+    public bool mouseOverTile;
     public Tile mouseTile;
     public List<Tile> selectedTiles;
-    public List<Entity> selectedEntities;
     public List<Tile> tilesInLight = new List<Tile>();
+    public List<Entity> selectedEntities;
+    public List<MapProperty> properties;
+    
+    [Serializable] public class MapProperty
+    {
+        public string name;
+        public string value;
+    }
 
     public int visionBlockerLayer;
     public int mapLayerMask;
     
+    private Camera _mainCamera;
+
     private void Start()
     {
+        _mainCamera = Camera.main;    
         mapLayerMask = LayerMask.GetMask("Tiles", "Vision Blocker");
         visionBlockerLayer = LayerMask.NameToLayer("Vision Blocker");
     }
@@ -39,9 +52,10 @@ public class Map : MonoBehaviour
         }
         
         UpdateTiles();
+        UpdateMouse();
     }
 
-    public void UpdateTiles()
+    private void UpdateTiles()
     {
         var allTilesInLight = new List<Tile>();
         allTilesInLight = entities
@@ -70,6 +84,36 @@ public class Map : MonoBehaviour
         tilesInLight = tilesToReveal;
     }
 
+    private void UpdateMouse()
+    {
+        var ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
+        Tile tile;
+        if (Physics.Raycast(ray, out var rayCastHit, 100f))
+            tile = rayCastHit.transform.GetComponent<Tile>();
+        else
+        {
+            mouseOverTile = false;
+            return;
+        }
+        
+        mouseOverTile = (bool) tile;
+        
+        if (mouseOverTile)
+        {
+            mousePosition = rayCastHit.point;
+            mouseTile = tile;
+        }
+        else
+        {
+            if (!Physics.Raycast(ray, out rayCastHit, 100f, mapLayerMask))
+                return;
+        
+            mousePosition = rayCastHit.point;
+            mouseTile = rayCastHit.transform.GetComponent<Tile>();
+        }
+            
+    }
+    
     public Tile Tile(Vector2Int position)
     {
         try
@@ -170,10 +214,13 @@ public class Map : MonoBehaviour
         var angleRad = angle * (Mathf.PI / 180f);
         return new Vector3(Mathf.Cos(angleRad), 0, Mathf.Sin(angleRad));
     }
+
+    #region Serialization
     
     [Serializable]
     public class SerializableMap
     {
+        public string mapId;
         public string name;
         public Vector2Int size;
         public List<Tile.SerializableTile> tiles;
@@ -206,6 +253,8 @@ public class Map : MonoBehaviour
 
     public void Deserialize(SerializableMap serializableMap)
     {
+        name = serializableMap.name;
+        mapId = serializableMap.mapId;
         var gameMaster = GameMaster.instance;
         tiles = new Tile[serializableMap.size.x, serializableMap.size.y];
         foreach (var serializableTile in serializableMap.tiles)
@@ -227,9 +276,10 @@ public class Map : MonoBehaviour
         {
             var entity = Instantiate(gameMaster.entityPrefab, entitiesParent).GetComponent<Entity>();
             entity.map = this;
-            entity.tile = Tile(serializableEntity.position);
             entity.Deserialize(serializableEntity);
             entities.Add(entity);
         }
     }
+    
+    #endregion
 }

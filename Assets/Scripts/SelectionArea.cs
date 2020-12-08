@@ -20,27 +20,23 @@ public class SelectionArea : MonoBehaviour
     private void Update()
     {
         var activeMap = _gm.campaign.ActiveMap;
-        if (ReferenceEquals(activeMap, null))
+        if (!activeMap)
             return;
 
         if (Input.GetMouseButtonUp(0))
             meshRenderer.enabled = false;
-        
+
         _cachedTile = activeMap.mouseTile ? activeMap.mouseTile : _cachedTile;
 
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && activeMap.mouseOverTile && !_gm.mouseOverUi)
         {
-            if (ReferenceEquals(activeMap.mouseTile, null))
-                return;
-            
             _startTile = _cachedTile;
             meshRenderer.enabled = true;
             activeMap.selectedTiles = new List<Tile>();
             activeMap.selectedEntities = new List<Entity>();
-
         }
         
-        if (ReferenceEquals(_startTile, null))
+        if (!_startTile)
             return;
         
         var startPos = _startTile.Position;
@@ -55,7 +51,8 @@ public class SelectionArea : MonoBehaviour
 
         if (!Input.GetMouseButtonUp(0)) 
             return;
-        
+
+        _startTile = null;
         meshRenderer.enabled = false;
         var minX = Math.Min(startPos.x, endPos.x);
         var minY = Math.Min(startPos.y, endPos.y);
@@ -65,10 +62,8 @@ public class SelectionArea : MonoBehaviour
         for (var y = minY; y <= maxY; y += 1)
             activeMap.selectedTiles.Add(activeMap.tiles[x, y]);
 
-        foreach (var entity in activeMap.entities.Where(
-            entity => activeMap.selectedTiles.Contains(entity.tile)))
-        {
-            activeMap.selectedEntities.Add(entity);
-        }
+        var tempSelect = activeMap.entities.Where(
+            entity => activeMap.selectedTiles.Contains(entity.tile)).ToList();
+        activeMap.selectedEntities = tempSelect;
     }
 }

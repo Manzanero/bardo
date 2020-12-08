@@ -4,27 +4,33 @@
 public class Draggable : MonoBehaviour
 {
     public bool Dragged { get; private set; }
-    public bool MouseOver { get; private set; }
+
+    private bool _mouseOver;
+    public bool MouseOver => !GameMaster.instance.mouseOverUi && _mouseOver;
 
     private float _timeHoldingMouse;
     
     private void OnMouseDrag()
     {
-        _timeHoldingMouse += Time.deltaTime;
-        if (!(_timeHoldingMouse > 0.25f)) 
+        if (!MouseOver && _timeHoldingMouse == 0)
             return;
+        
+        _timeHoldingMouse += Time.deltaTime;
+        if (_timeHoldingMouse < 0.25f) 
+            return;
+        
         GetComponent<Collider>().enabled = false;
         Dragged = true;
     }
     
     private void OnMouseEnter()
     {
-        MouseOver = true;
+        _mouseOver = true;
     }
     
     private void OnMouseExit()
     {
-        MouseOver = false;
+        _mouseOver = false;
     }
     
     private void OnMouseUp()
