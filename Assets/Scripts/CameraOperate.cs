@@ -4,7 +4,7 @@ using UnityEngine;
 public class CameraOperate : MonoBehaviour
 {
     public float minY = 10f;
-    public float maxY = 80f;
+    public float maxY = 60f;
     
     [Tooltip("Mouse wheel rolling control lens please enter, the speed of the back")]
     [Range(0.1f, 2f)] 
@@ -110,5 +110,10 @@ public class CameraOperate : MonoBehaviour
         position += scrollSpeed * scroll * 1000f * Time.deltaTime * Vector3.down;
         position.y = Mathf.Clamp(position.y, minY, maxY);
         _mTransform.position = position;
+    }
+
+    public void ResetRotation()
+    {
+        _mTransform.rotation = Quaternion.Euler(new Vector3(90, 0, 0));
     }
 }

@@ -12,11 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a21d32ff4614b0f832260edd7ca622a, type: 3}
   m_Name: Ground__Stone
   m_EditorClassIdentifier: 
-  folder: Ground
-  description: Stone
-  graphicMesh: {fileID: 1453043773871479701, guid: 809b9969e95f3674bbdb9e537c172d25, type: 3}
-  physicMesh: {fileID: 1453043773871479701, guid: 809b9969e95f3674bbdb9e537c172d25, type: 3}
-  material: {fileID: 2100000, guid: 71b8ad871918cce409b97875e8270f00, type: 2}
+  physicMeshResource: Tiles/Ground/Ground
   altitude: 0
-  walkable: 1
-  visionBlocker: 0
+  graphicMeshResource: Tiles/Ground/Ground
+  textureResource: Tiles/Ground/Ground_Stone
+  translucent: 0

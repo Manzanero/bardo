@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using UnityEngine;
@@ -16,34 +15,42 @@ namespace BardoUi.Tokens
         public Button newTokenButton;
         
         public InputField nameInput;
-        public Toggle hasNameToggle;
+        public Toggle showNameToggle;
+        public Toggle hideNameToggle;
         public InputField healthInput;
         public InputField maxHealthInput;
-        public Toggle hasHealthToggle;
+        public Toggle showHealthToggle;
+        public Toggle hideHealthToggle;
         public InputField staminaInput;
         public InputField maxStaminaInput;
-        public Toggle hasStaminaToggle;
+        public Toggle showStaminaToggle;
+        public Toggle hideStaminaToggle;
         public InputField manaInput;
         public InputField maxManaInput;
-        public Toggle hasManaToggle;
+        public Toggle showManaToggle;
+        public Toggle hideManaToggle;
         public InputField greenInput;
         public InputField redInput;
         public InputField blueInput;
+        public InputField sizeInput;
         public InputField lightInputField;
-        public Toggle hasLightToggle;
+        public Toggle showLightToggle;
+        public Toggle hideLightToggle;
 
         public Button saveButton;
+        public Button clearButton;
         public Button deleteButton;
     
         private GameMaster _gm;
         private Tile _cacheSelectTile;
-        private List<string> _cacheSelectIds = new List<string>();
+        private readonly List<string> _cacheSelectIds = new List<string>();
 
         private void Start()
         {
             _gm = GameMaster.instance;
             newTokenButton.onClick.AddListener(NewTokenButton);
             saveButton.onClick.AddListener(SaveButton);
+            clearButton.onClick.AddListener(ClearButton);
             deleteButton.onClick.AddListener(DeleteButton);
 
             // delete placeholder
@@ -53,7 +60,7 @@ namespace BardoUi.Tokens
 
         private void Update()
         {
-            var activeMap = _gm.campaign.ActiveMap;
+            var activeMap = _gm.campaign.activeMap;
             if (!activeMap)
                 return;
             
@@ -89,7 +96,7 @@ namespace BardoUi.Tokens
             {
                 foreach (Transform child in selectedItemsParent)
                     Destroy(child.gameObject);
-                _cacheSelectIds = new List<string>();
+                _cacheSelectIds.Clear();
             }
         }
 
@@ -97,7 +104,7 @@ namespace BardoUi.Tokens
         {
             _cacheSelectIds.Remove(item.name);
             Destroy(item.gameObject);
-            _gm.campaign.ActiveMap.selectedEntities.Remove(entity);
+            _gm.campaign.activeMap.selectedEntities.Remove(entity);
         }
 
         private void NewTokenButton()
@@ -106,16 +113,18 @@ namespace BardoUi.Tokens
             if (!tile)
                 return;
             
-            var map = _gm.campaign.ActiveMap;
+            var map = _gm.campaign.activeMap;
             var entity = Instantiate(_gm.entityPrefab, map.entitiesParent).GetComponent<Entity>();
             var pos = tile.Position;
             entity.transform.position = new Vector3(pos.x, tile.Altitude, pos.y);
             map.entities.Add(entity);
-            map.selectedEntities = new List<Entity>{entity};
+            map.selectedEntities.Clear();
+            map.selectedEntities.Add(entity);
             entity.map = map;
             entity.tile = tile;
+            entity.RefreshPermissions();
         
-            entity.id = Guid.NewGuid().ToString().Substring(0, 8);
+            entity.id = GameMaster.NewId();
             entity.HasName = true ;
             entity.Name = entity.id;
             entity.HasInitiative = false;
@@ -149,30 +158,60 @@ namespace BardoUi.Tokens
             
             _gm.RegisterAction(new Action {
                 name = GameMaster.ActionNames.ChangeEntity,
-                map = map.mapId,
+                map = map.id,
                 entities = map.selectedEntities.Select(x => x.Serialize()).ToList()
             });
         }
 
+        private void ClearButton()
+        {
+            nameInput.text = "";
+            showNameToggle.isOn = false;
+            hideNameToggle.isOn = false;
+            healthInput.text = "";
+            maxHealthInput.text = "";
+            showHealthToggle.isOn = false;
+            hideHealthToggle.isOn = false;
+            staminaInput.text = "";
+            maxStaminaInput.text = "";
+            showStaminaToggle.isOn = false;
+            hideStaminaToggle.isOn = false;
+            manaInput.text = "";
+            maxManaInput.text = "";
+            showManaToggle.isOn = false;
+            hideManaToggle.isOn = false;
+            redInput.text = "";
+            greenInput.text = ""; 
+            blueInput.text = ""; 
+            sizeInput.text = "";
+            lightInputField.text = "";
+            showLightToggle.isOn = false;
+            hideLightToggle.isOn = false;
+        }
+
         private void SaveButton()
         {
-            var map = _gm.campaign.ActiveMap;
+            var map = _gm.campaign.activeMap;
             if (map.selectedEntities.Count == 0)
                 return;
                 
             foreach (var entity in map.selectedEntities)
             {
                 if (nameInput.text != "") entity.Name = nameInput.text;
-                entity.HasName = hasNameToggle.isOn;
+                if (showNameToggle.isOn) entity.HasName = true;
+                if (hideNameToggle.isOn) entity.HasName = false;
                 if (healthInput.text != "") entity.Health = float.Parse(healthInput.text, CultureInfo.InvariantCulture);
                 if (maxHealthInput.text != "") entity.MaxHealth = float.Parse(maxHealthInput.text, CultureInfo.InvariantCulture);
-                entity.HasHealth = hasHealthToggle.isOn;
+                if (showHealthToggle.isOn) entity.HasHealth = true;
+                if (hideHealthToggle.isOn) entity.HasHealth = false;
                 if (staminaInput.text != "") entity.Stamina = float.Parse(staminaInput.text, CultureInfo.InvariantCulture);
                 if (maxStaminaInput.text != "") entity.MaxStamina = float.Parse(maxStaminaInput.text, CultureInfo.InvariantCulture);
-                entity.HasStamina = hasStaminaToggle.isOn;
+                if (showStaminaToggle.isOn) entity.HasStamina = true;
+                if (hideStaminaToggle.isOn) entity.HasStamina = false;
                 if (manaInput.text != "") entity.Mana = float.Parse(manaInput.text, CultureInfo.InvariantCulture);
                 if (maxManaInput.text != "") entity.MaxMana = float.Parse(maxManaInput.text, CultureInfo.InvariantCulture);
-                entity.HasMana = hasManaToggle.isOn;
+                if (showManaToggle.isOn) entity.HasMana = true;
+                if (hideManaToggle.isOn) entity.HasMana = false;
                 
                 var c = entity.BaseColor;
                 if (redInput.text != "") entity.BaseColor = new Color(
@@ -183,21 +222,24 @@ namespace BardoUi.Tokens
                 c = entity.BaseColor; 
                 if (blueInput.text != "") entity.BaseColor = new Color(
                     c.r, c.g, Mathf.Clamp(float.Parse(blueInput.text, CultureInfo.InvariantCulture), 0, 1)); 
+                if (sizeInput.text != "") 
+                    entity.BaseSize = Mathf.Clamp(float.Parse(sizeInput.text, CultureInfo.InvariantCulture), 0, 5);
                 if (lightInputField.text != "") 
                     entity.LightRange = Mathf.Clamp(float.Parse(lightInputField.text, CultureInfo.InvariantCulture), 0, 68);
-                entity.HasLight = hasLightToggle.isOn;
+                if (showLightToggle.isOn) entity.HasLight = true;
+                if (hideLightToggle.isOn) entity.HasLight = false;
             }
             
             _gm.RegisterAction(new Action {
                 name = GameMaster.ActionNames.ChangeEntity,
-                map = map.mapId,
+                map = map.id,
                 entities = map.selectedEntities.Select(x => x.Serialize()).ToList()
             });
         }
 
         private void DeleteButton()
         {
-            var map = _gm.campaign.ActiveMap;
+            var map = _gm.campaign.activeMap;
             foreach (var entity in map.selectedEntities)
             {
                 map.entities.Remove(entity);
@@ -206,11 +248,11 @@ namespace BardoUi.Tokens
             
             _gm.RegisterAction(new Action {
                 name = GameMaster.ActionNames.DeleteEntity,
-                map = map.mapId,
+                map = map.id,
                 entities = map.selectedEntities.Select(x => x.Serialize()).ToList()
             });
             
-            map.selectedEntities = new List<Entity>();
+            map.selectedEntities.Clear();
         }
     }
 }

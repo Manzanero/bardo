@@ -12,11 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a21d32ff4614b0f832260edd7ca622a, type: 3}
   m_Name: Platform__StoneStairsUp1
   m_EditorClassIdentifier: 
-  folder: Platform
-  description: Stone Stairs Down 1
-  graphicMesh: {fileID: 1149973307703454695, guid: 95375a6a72fbe124ca91d5b57a170ae8, type: 3}
-  physicMesh: {fileID: 1149973307703454695, guid: 95375a6a72fbe124ca91d5b57a170ae8, type: 3}
-  material: {fileID: 2100000, guid: 10cc9f6c148824a4484c52506ed3abad, type: 2}
+  physicMeshResource: Tiles/Platform/Platform
   altitude: 0.5
-  walkable: 1
-  visionBlocker: 0
+  graphicMeshResource: Tiles/Platform/Platform
+  textureResource: Tiles/Platform/Platform_StoneStairsUp1
+  translucent: 0

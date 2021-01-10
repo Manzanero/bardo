@@ -12,11 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a21d32ff4614b0f832260edd7ca622a, type: 3}
   m_Name: Top__Brick
   m_EditorClassIdentifier: 
-  folder: Top
-  description: Brick
-  graphicMesh: {fileID: 8201437419870775723, guid: 20de5e4dc29f1194abd48c05f90a6424, type: 3}
-  physicMesh: {fileID: 8201437419870775723, guid: 20de5e4dc29f1194abd48c05f90a6424, type: 3}
-  material: {fileID: 2100000, guid: 9e4eadae1edcc3740add218c9c49fe3f, type: 2}
+  physicMeshResource: Tiles/Top/Top
   altitude: 1
-  walkable: 0
-  visionBlocker: 1
+  graphicMeshResource: Tiles/Top/Top
+  textureResource: Tiles/Top/Top_Brick
+  translucent: 0

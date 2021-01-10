@@ -9,87 +9,46 @@ using UnityEngine;
 public class Campaign : MonoBehaviour
 {
     public Transform mapsParent;
-    public List<Map> mapsLoaded;
-
-
+    
     public static string campaignId;
     public static string campaignName;
+    public static string playerName;
+    public static bool playerIsMaster;
+    public static bool sharingPlayerVision;
+    public List<PlayerInfo> playersInfo;
     
-    public List<MapData> campaignMaps = new List<MapData>();
+    [Serializable] public class PlayerInfo
+    {
+        public string name;
+        public string id;
+        public bool master;
+    }
     
-    [Serializable] public class MapData
+    public List<Map> maps;
+    public Map activeMap;
+    public List<MapInfo> mapsInfo;
+    public bool loaded;
+    
+    [Serializable] public class MapInfo
     {
         public string name;
         public string id;
     }
     
     private GameMaster _gm;
-    private Server _server;
-    private bool _campaignLoaded;
-    private const float GetActionsPeriod = 3.0f;
-    private const float PostActionsPeriod = 1.0f;
-    private string _actionsFrom;
-    private Map _activeMap;
+    private string _actionsFromDate;
+    private readonly WaitForSecondsRealtime _updateActionsPeriod = new WaitForSecondsRealtime(1f);
+    private bool _loadingMap;
 
-    public Map ActiveMap
-    {
-        get => _activeMap;
-        set 
-        {
-            if (_activeMap != null) _activeMap.gameObject.SetActive(false);
-            _activeMap = value;
-            _activeMap.gameObject.SetActive(true);
-        }
-    }
 
     private void Start()
     {
         _gm = GameMaster.instance;
-        if (!Server.serverReady)
-        {
-            GameMaster.player = "admin";
-            GameMaster.password = "admin";
-            GameMaster.master = true;
-            campaignName = "test";
-            campaignId = "5rhgb76y";
-            Server.serverReady = true;     
-        }
         StartCoroutine(LoadCampaign());
         StartCoroutine(UpdateActions());
     }
-
-    public Map Map(string mapId)
-    {
-        return mapsLoaded.FirstOrDefault(m => m.mapId == mapId);
-    }
-
-    public IEnumerator ChangeActiveMap(string mapId)
-    {
-        var previousId = ActiveMap.mapId;
-        var mapToActive = Map(mapId);
-        if (mapToActive)
-        {
-            ActiveMap = mapToActive;
-            yield break;
-        } 
-        
-        StartCoroutine(LoadMap(mapId));
-        StartCoroutine(SaveProperty("ACTIVE_MAP", mapId));
-        while (!Map(mapId))
-            yield return null;
-
-        ActiveMap = Map(mapId);
-        
-        // unload previous
-        var map = Map(previousId);
-        if (map)
-        {
-            mapsLoaded.Remove(map);
-            Destroy(map.gameObject);
-        }
-    }
     
-    public IEnumerator SaveProperty(string propertyName, string propertyValue)
+    public IEnumerator SaveCampaignProperty(string propertyName, string propertyValue)
     {
         var url = $"{Server.baseUrl}/world/campaign/{campaignId}/property/{propertyName}/save";
         var request = Server.PostRequest(url, propertyValue);
@@ -101,9 +60,7 @@ public class Campaign : MonoBehaviour
     
     public IEnumerator DefaultProperty(string propertyName, string propertyValue)
     {
-        var url = $"{Server.baseUrl}/world" +
-                  $"/campaign/{campaignId}" +
-                  $"/property/{propertyName}/default";
+        var url = $"{Server.baseUrl}/world/campaign/{campaignId}/property/{propertyName}/default";
         var request = Server.PostRequest(url, propertyValue);
         while (!request.isDone)
             yield return null;
@@ -118,7 +75,8 @@ public class Campaign : MonoBehaviour
         [Serializable] public class CampaignData
         {
             public List<CampaignProperty> properties;
-            public List<MapData> maps;
+            public List<MapInfo> maps;
+            public List<PlayerInfo> players;
             
             [Serializable] public class CampaignProperty
             {
@@ -139,26 +97,61 @@ public class Campaign : MonoBehaviour
             yield return null;
         
         var campaignResponse = Server.GetResponse<CampaignResponse>(campaignRequest);
-        var campaign = campaignResponse.campaign;
+        var campaignInfo = campaignResponse.campaign; 
+        var properties = campaignInfo.properties;
         
-        // get active map
-        var property = campaign.properties.FirstOrDefault(p => p.name == "ACTIVE_MAP");
-        var mapToActive = property != null ? property.value : campaign.maps[0].id;
-        campaignMaps = campaign.maps;
-        var mapIds = campaignMaps.Select(x => x.id).ToList();
-        if (!mapIds.Contains(mapToActive))
-        {
-            Debug.LogWarning($"Active map (name={mapToActive}) for user doesn't exist");
-            mapToActive = campaign.maps[0].id;
-        }
+        // get players
+        playersInfo = campaignInfo.players;
 
+        // get active map
+        mapsInfo = campaignInfo.maps;
+        var activeMapProperty = properties.FirstOrDefault(p => p.name == "ACTIVE_MAP");
+        var activeMapName = activeMapProperty != null ? activeMapProperty.value : mapsInfo[0].id;
+        var mapIds = mapsInfo.Select(x => x.id).ToList();
+        if (!mapIds.Contains(activeMapName))
+        {
+            Debug.LogWarning($"Active map (name={activeMapName}) for user doesn't exist");
+            activeMapName = campaignInfo.maps[0].id;
+        }
+        
         // load active map
-        StartCoroutine(LoadMap(mapToActive));
-        while (Map(mapToActive) == null) 
+        StartCoroutine(LoadMap(activeMapName));
+        while (Map(activeMapName) == null) 
             yield return null;
         
-        ActiveMap = Map(mapToActive);
-        _campaignLoaded = true;
+        activeMap = Map(activeMapName);
+        loaded = true;
+    }
+
+    #region Maps
+    
+    public Map Map(string mapId)
+    {
+        return maps.FirstOrDefault(m => m.id == mapId);
+    }
+
+    public IEnumerator ChangeActiveMap(string mapId)
+    {
+        _gm.loading = true;
+        var fromMap = activeMap;
+        if (fromMap && fromMap.id.Equals(mapId))
+            yield break;
+        
+        if (fromMap)
+        {
+            maps.Remove(fromMap);
+            Destroy(fromMap.gameObject);
+        }
+        
+        Debug.Log(mapId);
+        StartCoroutine(LoadMap(mapId));
+        while (!Map(mapId)) yield return null;
+        
+        StartCoroutine(SaveCampaignProperty("ACTIVE_MAP", mapId));
+        
+        activeMap = Map(mapId);
+        activeMap.gameObject.SetActive(true);
+        _gm.loading = false;
     }
     
     [Serializable] private class MapResponse : Server.Response
@@ -166,31 +159,25 @@ public class Campaign : MonoBehaviour
         public Map.SerializableMap map;
     }
     
-    [Serializable] private class MapPropertiesResponse : Server.Response
+    [Serializable] public class MapPropertiesResponse : Server.Response
     {
         public List<Map.MapProperty> properties;
     }
-
+    
     public IEnumerator LoadMap(string mapId)
     {
+        if (_loadingMap) yield return null;
+        _loadingMap = true;
+        
         var mapRequest = Server.GetRequest($"{Server.baseUrl}/world/campaign/{campaignId}/map/{mapId}");
         while (!mapRequest.isDone) 
             yield return null;
         
         var mapResponse = Server.GetResponse<MapResponse>(mapRequest);
         var map = Instantiate(_gm.mapPrefab, mapsParent).GetComponent<Map>();
-        map.Deserialize(mapResponse.map);
-
-        // get actions not saved
-        var actionsRequest = Server.GetRequest($"{Server.baseUrl}/world/campaign/{campaignId}/actions/from/map/{mapId}");
-        while (!actionsRequest.isDone) 
-            yield return null;
+        map.Deserialize(mapResponse.map);     
+        activeMap = map;
             
-        var actionsResponse = Server.GetResponse<ActionsResponse>(actionsRequest);
-        ActiveMap = map;
-        foreach (var action in actionsResponse.actions)
-            _gm.ResolveAction(action);
-        
         // get map properties
         var request = Server.GetRequest($"{Server.baseUrl}/world/campaign/{campaignId}/map/{mapId}/properties");
         while (!request.isDone) 
@@ -198,29 +185,39 @@ public class Campaign : MonoBehaviour
         
         var response = Server.GetResponse<MapPropertiesResponse>(request);
         map.properties = response.properties;
-        foreach (var entity in map.entities)
-            entity.RefreshSharedProperties();
         
-        mapsLoaded.Add(map);
-        _actionsFrom = response.date;
-    }
-    
-    public IEnumerator DeleteMap(string mapId)
-    {
-        var request = Server.DeleteRequest($"{Server.baseUrl}/world/campaign/{campaignId}/map/{mapId}/delete");
-        while (!request.isDone)
+        // get explored tiles
+        var exploredProperty = map.properties.FirstOrDefault(p => p.name == "EXPLORED");
+        if (exploredProperty != null)
+        {
+            var exploredChars = exploredProperty.value.ToCharArray();
+            for (var y = 0; y < map.Height; y += 1) 
+            for (var x = 0; x < map.Width; x += 1)
+                map.tiles[x, y].Explored = exploredChars[x + y * map.Width] == '1';
+        }
+
+        // get actions not saved
+        var actionsRequest = Server.GetRequest($"{Server.baseUrl}/world/campaign/{campaignId}/actions/from/map/{mapId}");
+        while (!actionsRequest.isDone) 
             yield return null;
         
-        Server.GetResponse<Server.Response>(request);
-        var map = Map(mapId);
-        if (map)
-        {
-            mapsLoaded.Remove(map);
-            Destroy(map.gameObject);
-        }
-        campaignMaps.RemoveAll(x => x.id == mapId);
+        var actionsResponse = Server.GetResponse<ActionsResponse>(actionsRequest);
+        foreach (var action in actionsResponse.actions) _gm.ResolveAction(action);
+        
+        // get shared entity properties
+        foreach (var entity in map.entities) entity.RefreshPermissions();
+
+        map.loaded = true;
+        maps.Add(map);
+        _loadingMap = false;
+        // _actionsFromDate = actionsResponse.date;
+        _actionsFromDate = GameMaster.NowIsoDate();
     }
- 
+
+    #endregion
+
+    #region Actions
+    
     [Serializable] private class ActionsRequestBody
     {
         public List<Action> actions;
@@ -233,16 +230,16 @@ public class Campaign : MonoBehaviour
     
     private IEnumerator UpdateActions()
     {
-        while (!_campaignLoaded)
+        while (!loaded)
             yield return null;
         
         while (Server.serverReady)
-        { 
-            yield return new WaitForSecondsRealtime(PostActionsPeriod);
+        {
+            yield return _updateActionsPeriod;
 
             var data = new ActionsRequestBody {actions = _gm.actionsDone};
             var len = data.actions.Count;
-            var url = $"{Server.baseUrl}/world/campaign/{campaignId}/actions/from/date/{_actionsFrom}";
+            var url = $"{Server.baseUrl}/world/campaign/{campaignId}/actions/from/date/{_actionsFromDate}";
             var request = Server.PostRequest(url, data);
             while (!request.isDone)
                 yield return null;
@@ -253,8 +250,9 @@ public class Campaign : MonoBehaviour
             
             _gm.actionsDone.RemoveRange(0, len);
             _gm.actionsToDo.AddRange(response.actions);
-            _actionsFrom = response.date;
+            _actionsFromDate = response.date;
         }
     }
-
+    
+    #endregion
 }

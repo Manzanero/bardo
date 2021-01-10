@@ -77,15 +77,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tilesParent: {fileID: 618490903026522449}
   entitiesParent: {fileID: 2326196022663289516}
-  tilePrefab: {fileID: 9117542601642291125, guid: 9c8a2e17196d00144872adb3b89634bb, type: 3}
-  entityPrefab: {fileID: 8393685248616064163, guid: b538208df993aaf43833c4bc1e9745f8, type: 3}
-  blueprint: {fileID: 11400000, guid: bd442d44941a4d34aa9d8ef636f8dcf4, type: 2}
-  entities: []
-  mousePosition: {x: 0, y: 0, z: 0}
-  mouseTile: {fileID: 0}
-  tilesInLight: []
   visionBlockerLayer: 0
   mapLayerMask: 0
+  tileMaterial: {fileID: 2100000, guid: bcc9857d742c8c6418107e74baa79845, type: 2}
+  translucentTileMaterial: {fileID: 2100000, guid: d189702ff426c08479cd3d926580503d, type: 2}
+  blueprint: {fileID: 11400000, guid: bd442d44941a4d34aa9d8ef636f8dcf4, type: 2}
+  id: 
+  entities: []
+  loaded: 0
+  mousePosition: {x: 0, y: 0, z: 0}
+  mouseOverTile: 0
+  mouseTile: {fileID: 0}
+  selectedTiles: []
+  tilesInLight: []
+  selectedEntities: []
+  properties: []
 --- !u!1 &7774655293796782875
 GameObject:
   m_ObjectHideFlags: 0

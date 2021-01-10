@@ -1,8 +1,6 @@
 ﻿#pragma warning disable 0649
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -10,8 +8,21 @@ using UnityEngine.Networking;
 public class Server : MonoBehaviour
 {
     public static bool serverReady;
-    public static string baseUrl = "http://localhost";
-    // public const string BaseUrl = "https://manzanero.pythonanywhere.com";
+    public static string baseUrl;
+    private static string _username;
+    private static string _password;
+
+    public static void SetBaseUrl()
+    {
+        var url = Application.absoluteURL;
+        baseUrl = url == "" ? "http://localhost" : url.Substring(0, url.IndexOf('/', 10));
+    }
+
+    public static void SetCredentials(string username, string password)
+    {
+        _username = username;
+        _password = password;
+    }
     
     public class Response
     {
@@ -29,8 +40,8 @@ public class Server : MonoBehaviour
 
     private static string PlayerBasicAuth()
     {
-        var auth = $"{GameMaster.player}:{GameMaster.password}";
-        return "Basic " + Convert.ToBase64String(Encoding.ASCII.GetBytes(auth));
+        var auth = $"{_username}:{_password}";
+        return "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(auth));
     }
 
     private static UnityWebRequest AddCommonHeaders(UnityWebRequest request)
@@ -69,7 +80,7 @@ public class Server : MonoBehaviour
     
     public static T GetResponse<T>(UnityWebRequest request) where T : Response, new()
     {
-        return GetResponse<T>(request,  true);
+        return GetResponse<T>(request, true);
     }
     
     public static T GetResponse<T>(UnityWebRequest request, bool raiseExceptions) where T : Response, new()
@@ -87,10 +98,12 @@ public class Server : MonoBehaviour
                 throw new Exception($"[Server] JSON error: {jsonResponse}");
             }
             if (serializable.status >= 300)
-                throw new Exception($"[Server] Status {serializable.status}. Error: {serializable.message}");
+                throw new Exception($"[Server] Status {serializable.status}. Error: {serializable.message}. " +
+                                    $"Url: {request.url}");
             if (request.result.ToString() != "Success") 
                 throw new Exception($"[Server] Result: {request.result}. Body (if any): {jsonResponse}");
-            if (GameMaster.debugging) Debug.Log($"[Server] message: {serializable.message}");
+            if (GameMaster.debugging) Debug.Log($"[Server] message: {serializable.message}. " +
+                                                $"Url: {request.url}");
             return serializable;
         }
         catch (Exception e)

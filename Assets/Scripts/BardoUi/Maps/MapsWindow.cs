@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,17 +15,32 @@ namespace BardoUi.Maps
         public InputField currentMapInput;
         public Button saveButton;
         public Button saveAsButton;
+        
+        public Button newEmptyButton;
+        public Button newDonjonButton;
+        public GameObject donjonWindow;
+        public InputField tsvInputField;
+        public Button importDonjon;
+        public Button newFromButton;
+        
+        public GameObject errorDialogue;
+        public Text errorMessage;
     
         private GameMaster _gm;
-        private string _cachedId;
+        private Campaign _campaign;
         private int _cachedMapsCount;
+        private bool _resetMapList;
+        private string _cachedId;
 
         private void Start()
         {
             _gm = GameMaster.instance;
+            _campaign = _gm.campaign;
         
             saveButton.onClick.AddListener(SaveButton);
             saveAsButton.onClick.AddListener(SaveAsButton);
+            newDonjonButton.onClick.AddListener(delegate { donjonWindow.SetActive(true); });
+            importDonjon.onClick.AddListener(NewDonjonButton);
         
             // remove previous items
             foreach (Transform child in mapItemsParent)
@@ -34,90 +51,180 @@ namespace BardoUi.Maps
 
         private IEnumerator GetMapList()
         {
-            while (!_gm.campaign) 
-                yield return null;
-            while (_gm.campaign.mapsLoaded.Count == 0)
-                yield return null;
-            while (!_gm.campaign.ActiveMap)
-                yield return null;
+            while (!_campaign) yield return null;
             
-            var campaign = _gm.campaign;
+            while (_campaign.maps.Count == 0) yield return null;
             
-            _cachedId = campaign.ActiveMap.mapId;
-            _cachedMapsCount = campaign.campaignMaps.Count;
+            while (!_campaign.activeMap) yield return null;
+
+            _cachedId = _campaign.activeMap.id;
+            _cachedMapsCount = _campaign.mapsInfo.Count;
             
             while (true)
             {
                 foreach (Transform child in mapItemsParent)
                     Destroy(child.gameObject);
                 
-                currentMapInput.text = campaign.ActiveMap.name;
-                foreach (var mapData in campaign.campaignMaps)
+                currentMapInput.text = _campaign.activeMap.name;
+                foreach (var mapData in _campaign.mapsInfo)
                 {
                     var mapItem = Instantiate(mapItemPrefab, mapItemsParent).GetComponent<MapItem>();
                     mapItem.mapName.text = $"{mapData.name}";
-                    mapItem.selected.SetActive(campaign.ActiveMap.mapId == mapData.id);
-                    mapItem.deleteMapButton.gameObject.SetActive(campaign.ActiveMap.mapId != mapData.id);
-                    mapItem.changeMapButton.gameObject.SetActive(campaign.ActiveMap.mapId != mapData.id);
-                    mapItem.deleteMapButton.onClick.AddListener(delegate { DeleteMapButton(mapData.id); });
-                    mapItem.changeMapButton.onClick.AddListener(delegate { ChangeMapButton(mapData.id); });
+                    mapItem.selected.SetActive(_campaign.activeMap.id == mapData.id);
+                    mapItem.deleteMapButton.gameObject.SetActive(_campaign.activeMap.id != mapData.id);
+                    mapItem.changeMapButton.gameObject.SetActive(_campaign.activeMap.id != mapData.id);
+                    mapItem.deleteMapButton.onClick.AddListener(delegate { StartCoroutine(DeleteMap(mapData.id)); });
+                    mapItem.changeMapButton.onClick.AddListener(delegate { StartCoroutine(_campaign.ChangeActiveMap(mapData.id)); });
+                    mapItem.changeAllMapButton.onClick.AddListener(delegate { ChangeAllMapButton(mapData.id); });
                 }
                 
-                while (_cachedId == campaign.ActiveMap.mapId && _cachedMapsCount == campaign.campaignMaps.Count)
+                while (_cachedMapsCount == _campaign.mapsInfo.Count && 
+                       _cachedId == _campaign.activeMap.id && 
+                       !_resetMapList)
                     yield return null;
                 
-                _cachedId = campaign.ActiveMap.mapId;
-                _cachedMapsCount = campaign.campaignMaps.Count;
+                _cachedId = _campaign.activeMap.id;
+                _cachedMapsCount = _campaign.mapsInfo.Count;
+                _resetMapList = false;
             }
         }
     
-        private void SaveButton()
+        public IEnumerator SaveActiveMap(string newName, bool asNew)
         {
-            StartCoroutine(SaveMapRequest(false));
-        }
-    
-        private void SaveAsButton()
-        {
-            StartCoroutine(SaveMapRequest(true));
-        }
-    
-        private IEnumerator SaveMapRequest(bool asNew)
-        {
-            var newName = currentMapInput.text;
+            _gm.loading = true;
             var campaign = _gm.campaign;
-            var map = campaign.ActiveMap;
-            var mapId = Guid.NewGuid().ToString().Substring(0, 8);
-            if (!asNew) mapId = map.mapId;
+            var map = campaign.activeMap;
+            var mapId = asNew ? GameMaster.NewId() : map.id;
             var data = map.Serialize();
             data.name = newName;
             data.mapId = mapId;
-            var url = $"{Server.baseUrl}/world" +
-                      $"/campaign/{Campaign.campaignId}" +
-                      $"/map/{mapId}/save";
+            var url = $"{Server.baseUrl}/world/campaign/{Campaign.campaignId}/map/{mapId}/save";
             var request = Server.PostRequest(url, data);
             while (!request.isDone)
                 yield return null;
             
             Server.GetResponse<Server.Response>(request);
             map.name = newName;
-            map.mapId = mapId;
-            campaign.campaignMaps.RemoveAll(x => x.id == mapId);
-            campaign.campaignMaps.Add(new Campaign.MapData {name = newName, id = mapId});
-            campaign.campaignMaps.Sort(
-                (p, q) => string.Compare(p.name, q.name, StringComparison.Ordinal));
+            map.id = mapId;
+            campaign.mapsInfo.RemoveAll(x => x.id == mapId);
+            campaign.mapsInfo.Add(new Campaign.MapInfo {name = newName, id = mapId});
+            campaign.mapsInfo.Sort((x, y) => string.Compare(
+                x.name, y.name, StringComparison.Ordinal));
         
-            Debug.Log($"Map (name={newName}, id={mapId}) saved");
+            StartCoroutine(_campaign.SaveCampaignProperty("ACTIVE_MAP", mapId));
+            _gm.loading = false;
+            _resetMapList = true;
+        }  
+    
+        private void SaveButton()
+        {
+            var newName = currentMapInput.text;
+            if (ExistingName(newName) && _campaign.activeMap.name != newName)
+            {
+                RaiseError($"There is already a map with name '{newName}'");
+                return;
+            }
+            
+            StartCoroutine(SaveActiveMap(newName, false));
         }
     
-    
-        private void DeleteMapButton(string mapId)
+        private void SaveAsButton()
         {
-            StartCoroutine(_gm.campaign.DeleteMap(mapId));
+            var newName = currentMapInput.text;
+            if(ExistingName(newName))
+            {
+                RaiseError($"There is already a map with name '{newName}'");
+                return;
+            }
+            
+            StartCoroutine(SaveActiveMap(newName, true));
         }
     
-        private void ChangeMapButton(string mapId)
+        public IEnumerator DeleteMap(string mapId)
         {
-            StartCoroutine(_gm.campaign.ChangeActiveMap(mapId));
+            _gm.loading = true;
+            var request = Server.DeleteRequest($"{Server.baseUrl}/world/campaign/{Campaign.campaignId}/map/{mapId}/delete");
+            while (!request.isDone)
+                yield return null;
+        
+            Server.GetResponse<Server.Response>(request);
+            var map = _campaign.Map(mapId);
+            if (map)
+            {
+                _campaign.maps.Remove(map);
+                Destroy(map.gameObject);
+            }
+            _campaign.mapsInfo.RemoveAll(x => x.id == mapId);
+            _gm.loading = false;
+            _resetMapList = true;
+        }
+    
+        private void ChangeAllMapButton(string mapId)
+        {
+            if (_campaign.activeMap.id != mapId) StartCoroutine(_campaign.ChangeActiveMap(mapId));
+            
+            _gm.RegisterAction(new Action
+            {
+                name = GameMaster.ActionNames.ChangeMap,
+                strings = new List<string>{mapId}
+            });
+        }
+    
+        public IEnumerator NewMapFromDonjon(string newName, string mapTsv)
+        {
+            _gm.loading = true;
+            var campaign = _gm.campaign;
+            var mapId = GameMaster.NewId();
+            var map = MapGenerator.CreateMapFromDonjon(mapTsv);
+            map.gameObject.SetActive(false);
+            map.name = newName;
+            map.id = mapId;
+            var data = map.Serialize();
+            var url = $"{Server.baseUrl}/world/campaign/{Campaign.campaignId}/map/{mapId}/save";
+            var request = Server.PostRequest(url, data);
+            while (!request.isDone)
+                yield return null;
+        
+            Server.GetResponse<Server.Response>(request);
+            campaign.maps.Add(map);
+            StartCoroutine(_campaign.ChangeActiveMap(mapId));
+            while (!map.gameObject.activeSelf)
+                yield return null;
+        
+            campaign.mapsInfo.Add(new Campaign.MapInfo {name = newName, id = mapId});
+            campaign.mapsInfo.Sort((x, y) => string.Compare(
+                x.name, y.name, StringComparison.Ordinal));
+            _gm.loading = false;
+        }
+        
+        private void SpawnDonjonWindow()
+        {
+            donjonWindow.SetActive(true);
+        }
+        
+        private void NewDonjonButton()
+        {
+            var newName = currentMapInput.text;
+            if(ExistingName(newName))
+            {
+                RaiseError($"There is already a map with name '{newName}'");
+                return;
+            }
+            
+            var tsv =  tsvInputField.text;
+            StartCoroutine(NewMapFromDonjon(newName, tsv));
+        }
+
+        private void RaiseError(string msg)
+        {
+            errorDialogue.SetActive(true);
+            errorMessage.text = msg;
+        }
+
+        private bool ExistingName(string mapName)
+        {
+            var mapInfo = _campaign.mapsInfo.FirstOrDefault(x => x.name == mapName);
+            return mapInfo != null;
         }
     }
 }

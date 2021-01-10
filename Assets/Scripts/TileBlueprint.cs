@@ -3,12 +3,9 @@
 [CreateAssetMenu(fileName = "New Tile", menuName = "Tile Blueprint")]
 public class TileBlueprint : ScriptableObject
 {
-    public string folder;
-    public string description;
-    public Mesh graphicMesh;
-    public Mesh physicMesh;
-    public Material material;
+    public string physicMeshResource;
     public float altitude;
-    public bool walkable;
-    public bool visionBlocker;
+    public string graphicMeshResource;
+    public string textureResource;
+    public bool translucent;
 }

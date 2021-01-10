@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(MeshFilter))]
 [RequireComponent(typeof(MeshRenderer))]
@@ -18,20 +15,41 @@ public class Tile : MonoBehaviour
 
     private Vector2Int _position;
     private float _rotation;
-    private bool _explored;
-    
-    // Blueprint
-    private float _altitude;
     private bool _walkable;
     private bool _visionBlocker;
+    private string _physicMeshResource;
+    private float _altitude;
+    private string _graphicMeshResource;
+    private string _textureResource;
+    private bool _translucent;
     
     // calculated
+    private bool _explored;
     private bool _shadow;
-    private bool _vision;
     private float _luminosity;
     
     // private Camera _mainCamera;
     private int _tilesLayerMask;
+    
+    public Vector2Int Position
+    {
+        get => _position;
+        set 
+        {
+            transform.position = new Vector3(value.x, 0, value.y);
+            _position = value;
+        }
+    }
+
+    public float Rotation
+    {
+        get => _rotation;
+        set 
+        {
+            transform.eulerAngles = new Vector3(0, value, 0);
+            _rotation = value;
+        }
+    }
     
     public float Altitude
     {
@@ -54,57 +72,48 @@ public class Tile : MonoBehaviour
             _visionBlocker = value; 
         } 
     }
-    
-    public TileBlueprint Blueprint
+
+    public string GraphicMeshResource
     {
-        get => blueprint;
+        get => _graphicMeshResource;
         set
         {
-            // graphics
-            meshFilter.mesh = value.graphicMesh;
-            meshRenderer.material = value.material;
-            // physics
-            meshCollider.sharedMesh = value.physicMesh;
-            VisionBlocker = value.visionBlocker;
-            Altitude = value.altitude;
-            Walkable = value.walkable;
-            
-            blueprint = value;
+            meshFilter.mesh = GameMaster.GetResource<Mesh>(value);
+            _graphicMeshResource = value;
         }
     }
 
-    public Vector2Int Position
+    public string PhysicMeshResource
     {
-        get => _position;
+        get => _physicMeshResource;
+        set
+        {
+            meshCollider.sharedMesh = GameMaster.GetResource<Mesh>(value);
+            _physicMeshResource = value;
+        }
+    }
+    
+    public string TextureResource
+    {
+        get => _textureResource;
+        set
+        {
+            meshRenderer.material.mainTexture = GameMaster.GetResource<Texture>(value);
+            _textureResource = value;
+        } 
+    }
+    
+    public bool Translucent
+    {
+        get => _translucent;
         set 
         {
-            transform.position = new Vector3(value.x, 0, value.y);
-            _position = value;
+            meshRenderer.material = value ? map.translucentTileMaterial : map.tileMaterial;
+            meshRenderer.material.mainTexture = GameMaster.GetResource<Texture>(_textureResource);
+            _translucent = value;
         }
     }
-
-    public float Rotation
-    {
-        get => _rotation;
-        set 
-        {
-            transform.eulerAngles = new Vector3(0, value, 0);
-            _rotation = value;
-        }
-    }
-
-    public bool Shadow
-    {
-        get => _shadow;
-        set => _shadow = value;
-    }
-
-    public bool Vision
-    {
-        get => _vision;
-        set => _vision = value;
-    }
-
+    
     public bool Explored
     {
         get => _explored;
@@ -113,6 +122,12 @@ public class Tile : MonoBehaviour
             meshRenderer.enabled = value;
             _explored = value;
         }
+    }
+    
+    public bool Shadow
+    {
+        get => _shadow;
+        set => _shadow = value;
     }
 
     public float Luminosity
@@ -125,61 +140,46 @@ public class Tile : MonoBehaviour
         }
     }
 
-    // private void Start()
-    // {
-    //     _mainCamera = Camera.main;     
-    //     // _tilesLayerMask = LayerMask.GetMask("Tiles", "Vision Blocker");
-    // }
-
-    // private void OnMouseOver()
-    // {
-    //     if (GameMaster.instance.mouseOverUi) 
-    //         return;
-    //     
-    //     var ray = _mainCamera.ScreenPointToRay(Input.mousePosition);
-    //     if (!Physics.Raycast(ray, out var rayCastHit, 100f, _tilesLayerMask)) 
-    //         return;
-    //     map.mousePosition = rayCastHit.point;
-    //     map.mouseTile = this;
-    // }
-    //
-    // private void OnMouseExit()
-    // {
-    //     map.mouseTile = null;
-    // }
-    
     [Serializable]
     public class SerializableTile
     {
-        public string blueprint;
         public Vector2Int position;
         public float rotation;
-        public bool explored;
+        public float altitude;
+        public bool walkable;
+        public bool visionBlocker;
+        public string graphicMeshResource;
+        public string physicMeshResource;
+        public string textureResource;
+        public bool translucent;
     }
 
     public SerializableTile Serialize()
     {
-        var tileObject = new SerializableTile
+        return new SerializableTile
         {
-            blueprint = Blueprint.folder + "/" + Blueprint.name,
             position = Position,
             rotation = Rotation,
-            explored = Explored
+            altitude = Altitude,
+            walkable = Walkable,
+            visionBlocker = VisionBlocker,
+            graphicMeshResource = GraphicMeshResource,
+            physicMeshResource = PhysicMeshResource,
+            textureResource = TextureResource,
+            translucent = Translucent
         };
-        return tileObject;
     }
 
     public void Deserialize(SerializableTile serializableTile)
     {
-        Blueprint = GetTileBlueprint(serializableTile.blueprint);
         Position = serializableTile.position;
         Rotation = serializableTile.rotation;
-        Explored = serializableTile.explored;
-    }
-
-    private static TileBlueprint GetTileBlueprint(string path)
-    {
-        return Resources.LoadAll($"Blueprints/Tiles/{path}", 
-            typeof(TileBlueprint)).Cast<TileBlueprint>().ToArray()[0];
+        Altitude = serializableTile.altitude;
+        Walkable = serializableTile.walkable;
+        VisionBlocker = serializableTile.visionBlocker;
+        GraphicMeshResource = serializableTile.graphicMeshResource;
+        PhysicMeshResource = serializableTile.physicMeshResource;
+        TextureResource = serializableTile.textureResource;
+        Translucent = serializableTile.translucent;
     }
 }

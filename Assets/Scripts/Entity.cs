@@ -312,13 +312,13 @@ public class Entity : MonoBehaviour
 
     #region permissions
     
-    private bool _sharedName = false;
-    private bool _sharedPosition = true;
-    private bool _sharedVision = false;
-    private bool _sharedControl = false;
-    private bool _sharedHealth = false;
-    private bool _sharedStamina = false;
-    private bool _sharedMana = false;
+    private bool _sharedName;
+    private bool _sharedPosition;
+    private bool _sharedVision;
+    private bool _sharedControl;
+    private bool _sharedHealth;
+    private bool _sharedStamina;
+    private bool _sharedMana;
     
     public bool SharedName
     {
@@ -350,9 +350,9 @@ public class Entity : MonoBehaviour
 
     public bool SharedMana { get => _sharedMana; set => _sharedMana = value; }
 
-    public void RefreshSharedProperties()
+    public void RefreshPermissions()
     {
-        if (GameMaster.master)
+        if (Campaign.playerIsMaster && !Campaign.sharingPlayerVision)
         {
             SharedName = true;
             SharedPosition = true;
@@ -364,29 +364,28 @@ public class Entity : MonoBehaviour
             return;
         }
         
-        Debug.Log(map.properties.Count);
-        Debug.Log(map.properties[0].value);
+        SharedName = false;
+        SharedPosition = false;
+        SharedVision = false;
+        SharedControl = false;
+        SharedHealth = false;
+        SharedStamina = false;
+        SharedMana = false;
         
         foreach (var property in map.properties.Where(x => x.value == id))
         {
             switch (property.name)
             {
                 case "SHARED_NAME":       SharedName = true;      break;
-                case "UNSHARED_NAME":     SharedName = false;     break;
                 case "SHARED_POSITION":   SharedPosition = true;  break;
-                case "UNSHARED_POSITION": SharedPosition = false; break;
                 case "SHARED_VISION":     SharedVision = true;    break;
-                case "UNSHARED_VISION":   SharedVision = false;   break;
                 case "SHARED_CONTROL":    SharedControl = true;   break;
-                case "UNSHARED_CONTROL":  SharedControl = false;  break;
                 case "SHARED_HEALTH":     SharedHealth = true;    break;
-                case "UNSHARED_HEALTH":   SharedHealth = false;   break;
                 case "SHARED_STAMINA":    SharedStamina = true;   break;
-                case "UNSHARED_STAMINA":  SharedStamina = false;  break;
                 case "SHARED_MANA":       SharedMana = true;      break;
-                case "UNSHARED_MANA":     SharedMana = false;     break;
             }
         }
+        _resetVision = true;
     }
     
     #endregion
@@ -394,7 +393,13 @@ public class Entity : MonoBehaviour
     private Camera _mainCamera;
     private Tile _cachedTile;
     private bool _inMovement;
+    private Vector3 _cachedPosition;
     private bool _resetVision;
+
+    public void ResetVision()
+    {
+        _resetVision = true;
+    }
 
     private void Start()
     {
@@ -405,8 +410,8 @@ public class Entity : MonoBehaviour
     
     private void Update()
     {
-        if (ReferenceEquals(map, null))
-            return;
+        if (map == null) return;
+        
         if (ReferenceEquals(tile, null))
         {
             var position = transform.position;
@@ -423,7 +428,10 @@ public class Entity : MonoBehaviour
     private void UpdateSelection()
     {
         if (Clicked)
-            map.selectedEntities = new List<Entity>{this};
+        {
+            map.selectedEntities.Clear();
+            map.selectedEntities.Add(this);
+        }
     }
 
     private void UpdateUi()
@@ -453,26 +461,13 @@ public class Entity : MonoBehaviour
         var screenForward = new Vector3(cameraForward.x, 0, cameraForward.z);
         screenForward = screenForward.magnitude < 0.001f ? mainCameraTransform.up : screenForward.normalized;
         if (!HasBody)
-            barsCanvasTransform.position = thisTransformPosition + 0.4f * screenForward + 0.1f * Vector3.up;
+            barsCanvasTransform.position = thisTransformPosition + BaseSize / 2 * screenForward + 0.1f * Vector3.up;
         else
             barsCanvasTransform.position = thisTransformPosition + 0.2f * screenForward + BodySize * Vector3.up;
-        nameCanvasTransform.position = thisTransformPosition - 0.4f * screenForward;
+        nameCanvasTransform.position = thisTransformPosition - BaseSize / 2 * screenForward;
         
         // mouse interaction
-        if (map.selectedEntities.Contains(this))
-        {
-            // var newScale = 0.003f * Vector3.one;
-            // nameCanvasTransform.localScale = newScale;
-            // barsCanvasTransform.localScale = newScale;
-            baseOutline.enabled = true;
-        }
-        else
-        {
-            // var newScale = 0.001f * Vector3.one;
-            // nameCanvasTransform.localScale = newScale;
-            // barsCanvasTransform.localScale = newScale;
-            baseOutline.enabled = false;
-        }
+        baseOutline.enabled = map.selectedEntities.Contains(this);
     }
 
     private void UpdatePosition()
@@ -483,30 +478,29 @@ public class Entity : MonoBehaviour
         if (Dragged)
         {
             _inMovement = true;
-            if (!map.mouseTile || !map.mouseTile.Walkable) 
-                return;
+            if (!map.mouseTile || !map.mouseTile.Walkable) return;
             
             tile = map.mouseTile;
             ColliderEnabled = false;
-            transform.position = new Vector3(map.mousePosition.x, tile.Altitude + 0.2f, map.mousePosition.z);
-            if (tile == _cachedTile)
-                return;
+            _cachedPosition = new Vector3(map.mousePosition.x, tile.Altitude + 0.2f, map.mousePosition.z);
+            transform.position = _cachedPosition;
+            if (tile == _cachedTile) return;
             
             _cachedTile = tile;
             _resetVision = true;
         }
-        else
+        else if (_inMovement)
         {
-            ColliderEnabled = true;         
-            transform.position = new Vector3(tile.Position.x, tile.Altitude, tile.Position.y);
-
-            if (!_inMovement) 
-                return;
-            
             _inMovement = false;
+            ColliderEnabled = true;
+            if (Input.GetKey(KeyCode.LeftAlt))
+                transform.position = new Vector3(_cachedPosition.x, tile.Altitude, _cachedPosition.z);
+            else
+                transform.position = new Vector3(tile.Position.x, tile.Altitude, tile.Position.y);
+
             GameMaster.instance.RegisterAction(new Action {
                 name = GameMaster.ActionNames.ChangeEntity,
-                map = map.mapId,
+                map = map.id,
                 entities = new List<SerializableEntity>{Serialize()}
             });
         }
@@ -518,19 +512,17 @@ public class Entity : MonoBehaviour
             return;
         _resetVision = false;
         
+        tilesInVision.Clear();
         if (HasVision && (SharedControl || SharedVision))
-            tilesInVision = map.TilesInRange(tile.Position, 50);
+            tilesInVision.AddRange(map.TilesInRange(tile.Position, 50));
         else if (!HasVision && SharedControl)
-            tilesInVision = new List<Tile> { map.Tile(tile.Position) };
-        else
-            tilesInVision = new List<Tile>();
+            tilesInLight.Add(map.Tile(tile.Position));
         
+        tilesInLight.Clear(); 
         if (HasLight)
-            tilesInLight = map.TilesInRange(tile.Position, LightRange);
+            tilesInLight.AddRange(map.TilesInRange(tile.Position, LightRange));
         else if (HasVision && SharedControl)
-            tilesInLight = new List<Tile> { map.Tile(tile.Position) };
-        else
-            tilesInLight = new List<Tile>();
+            tilesInLight.Add(map.Tile(tile.Position));
     }
 
     private void UpdateLuminosity()
@@ -547,8 +539,7 @@ public class Entity : MonoBehaviour
             return;
         }
         var tl = tile.Luminosity;
-        var material = baseMeshRenderer.material;
-        material.color = new Color(BaseColor.r * tl, BaseColor.g * tl, BaseColor.b * tl);
+        baseMeshRenderer.material.color = new Color(BaseColor.r * tl, BaseColor.g * tl, BaseColor.b * tl);
         bodyMeshRenderer.material.color = new Color(tl,tl,tl);
     }
     #endregion
@@ -605,7 +596,7 @@ public class Entity : MonoBehaviour
 
     public SerializableEntity Serialize()
     {
-        var tileObject = new SerializableEntity
+        return new SerializableEntity
         {
             id = id,
             hasName = HasName,
@@ -642,7 +633,6 @@ public class Entity : MonoBehaviour
             scaleCorrection = ScaleCorrection,
             bodyMaterialResource = BodyMaterialResource
         };
-        return tileObject;
     }
 
     public void Deserialize(SerializableEntity serializableEntity)
@@ -683,11 +673,6 @@ public class Entity : MonoBehaviour
         transform.position = new Vector3(
             tile.Position.x + serializableEntity.tileOffset.x, tile.Altitude, 
             tile.Position.y + serializableEntity.tileOffset.y); 
-    }
-
-    private static T GetResource<T>(string path)
-    {
-        return Resources.LoadAll(path, typeof(T)).Cast<T>().ToArray()[0];
     }
     
     #endregion

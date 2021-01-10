@@ -17,6 +17,11 @@ public class GameStart : MonoBehaviour
     public InputField playerInput;
     public InputField passwordInput;
 
+    private void Start()
+    {
+        Server.SetBaseUrl();
+    }
+
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Return))
@@ -43,8 +48,8 @@ public class GameStart : MonoBehaviour
     
     public IEnumerator LoadWorld()
     {
-        GameMaster.player = playerInput.text;
-        GameMaster.password = passwordInput.text;
+        Server.SetCredentials(playerInput.text, passwordInput.text);
+        
         
         // check valid credentials
         var request = Server.GetRequest($"{Server.baseUrl}/world/");
@@ -79,16 +84,20 @@ public class GameStart : MonoBehaviour
         
         var campaignResponse = Server.GetResponse<Campaign.CampaignResponse>(campaignRequest);
         var campaign = campaignResponse.campaign;
-        var isPlayer = campaign.properties.FirstOrDefault(p => p.name == "IS_PLAYER");
+        var properties = campaign.properties;
+        var isPlayer = properties.FirstOrDefault(p => p.name == "IS_PLAYER");
         if (isPlayer == null)
         {
             RaiseError($"Player (name={campaignName}) does not belong to this campaign");
             yield break;
         }
 
-        var isMaster = campaign.properties.FirstOrDefault(p => p.name == "IS_MASTER");
-        if (isMaster != null && isMaster.value == "true")
-            GameMaster.master = true;
+        var isMaster = properties.FirstOrDefault(p => p.name == "IS_MASTER");
+        Campaign.playerIsMaster = isMaster != null && isMaster.value == "true";
+        
+        var playersInfo = campaign.players;
+        Campaign.playerName = playersInfo.FirstOrDefault(p => string.Equals(
+            p.name, playerInput.text, StringComparison.CurrentCultureIgnoreCase))?.name;
 
         Server.serverReady = true;     
         

@@ -1,6 +1,7 @@
 ﻿#pragma warning disable 0649
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,30 +10,43 @@ public class Map : MonoBehaviour
 {
     public Transform tilesParent;
     public Transform entitiesParent;
+    public int visionBlockerLayer;
+    public int mapLayerMask;
+    public Material tileMaterial;
+    public Material translucentTileMaterial;
+    
     public MapBlueprint blueprint;
     
-    public string mapId;
+    public string id;
     public Tile[,] tiles;
-    public List<Entity> entities;
-
+    public List<Entity> entities = new List<Entity>();
+    public bool loaded;
+    
     public Vector3 mousePosition;
     public bool mouseOverTile;
     public Tile mouseTile;
     public List<Tile> selectedTiles;
     public List<Tile> tilesInLight = new List<Tile>();
-    public List<Entity> selectedEntities;
+    public List<Entity> selectedEntities = new List<Entity>();
     public List<MapProperty> properties;
-    
+
     [Serializable] public class MapProperty
     {
         public string name;
         public string value;
     }
-
-    public int visionBlockerLayer;
-    public int mapLayerMask;
+    
+    public int Width => tiles.GetLength(0);
+    public int Height => tiles.GetLength(1);
     
     private Camera _mainCamera;
+    private readonly WaitForSecondsRealtime _updateExploredPeriod = new WaitForSecondsRealtime(10f);
+    private List<Tile> _allTilesInLight = new List<Tile>();
+    private List<Tile> _allTilesInVision = new List<Tile>();
+    private List<Transform> _cachedTilesTransform = new List<Transform>();
+    private List<Tile> _cachedTiles = new List<Tile>();
+    private List<Tile> _extraTilesToReveal = new List<Tile>();
+    private string _cachedExploredArray;
 
     private void Start()
     {
@@ -41,6 +55,50 @@ public class Map : MonoBehaviour
         visionBlockerLayer = LayerMask.NameToLayer("Vision Blocker");
     }
 
+    
+    public IEnumerator SaveMapProperty(string propertyName, string propertyValue)
+    {
+        var url = $"{Server.baseUrl}/world/campaign/{Campaign.campaignId}/map/{id}/property/{propertyName}/save";
+        var request = Server.PostRequest(url, propertyValue);
+        while (!request.isDone)
+            yield return null;
+        
+        Server.GetResponse<Server.Response>(request);
+    }
+
+    private IEnumerator UpdateExplored()
+    {
+        if (Campaign.playerIsMaster)
+            yield break;
+        
+        while (!loaded)
+            yield return null;
+        
+        while (loaded)
+        {
+            var exploredArray = "";
+            for (var y = 0; y < Height; y += 1) 
+            for (var x = 0; x < Width; x += 1)
+                exploredArray += tiles[x, y].Explored ? "1" : "0";
+
+            if (_cachedExploredArray == exploredArray)
+            {
+                yield return _updateExploredPeriod;
+                continue;
+            }
+                    
+            _cachedExploredArray = exploredArray;
+            
+            StartCoroutine(SaveMapProperty("EXPLORED", exploredArray));
+            yield return _updateExploredPeriod;
+        }
+    }
+    
+    private void OnEnable()
+    {
+        StartCoroutine(UpdateExplored());
+    }
+    
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.J))
@@ -51,23 +109,26 @@ public class Map : MonoBehaviour
             // // Debug.LogWarning(ToJson());
         }
         
-        UpdateTiles();
+        UpdateVision();
         UpdateMouse();
     }
 
-    private void UpdateTiles()
+    private void UpdateVision()
     {
-        var allTilesInLight = new List<Tile>();
-        allTilesInLight = entities
-            .Select(x => x.tilesInLight)
-            .Aggregate(allTilesInLight, (x, y) => x.Union(y).ToList());
-
-        var allTilesInVision = new List<Tile>();
-        allTilesInVision = entities.Where(x => x.SharedVision)
-            .Select(x => x.tilesInVision)
-            .Aggregate(allTilesInVision, (x, y) => x.Union(y).ToList());
+        if (Campaign.playerIsMaster && !Campaign.sharingPlayerVision)
+            return;
         
-        var tilesToReveal = allTilesInLight.Intersect(allTilesInVision).ToList();
+        _allTilesInLight.Clear();
+        _allTilesInLight = entities
+            .Select(x => x.tilesInLight)
+            .Aggregate(_allTilesInLight, (x, y) => x.Union(y).ToList());
+
+        _allTilesInVision.Clear();
+        _allTilesInVision = entities.Where(x => x.SharedVision)
+            .Select(x => x.tilesInVision)
+            .Aggregate(_allTilesInVision, (x, y) => x.Union(y).ToList());
+        
+        var tilesToReveal = _allTilesInLight.Intersect(_allTilesInVision).ToList();
 
         foreach (var tile in tilesInLight.Except(tilesToReveal))
         {
@@ -83,6 +144,8 @@ public class Map : MonoBehaviour
         }
         tilesInLight = tilesToReveal;
     }
+
+    public void ResetVision() => tilesInLight.Clear();
 
     private void UpdateMouse()
     {
@@ -152,8 +215,8 @@ public class Map : MonoBehaviour
         var origin = new Vector3(position.x, -1.05f, position.y);
         var rayCastHits = new RaycastHit[(int) (range - 1) * 2]; 
 
-        var cachedTilesTransform = new List<Transform>();
-        var cachedTiles = new List<Tile>();
+        _cachedTilesTransform.Clear();
+        _cachedTiles.Clear();
 
         // get ground transforms in sight
         for (var i = 0; i <= rayCount; i++)
@@ -172,7 +235,7 @@ public class Map : MonoBehaviour
             for (var j = 0; j < hits; j++)
             {
                 if (rayCastHits[j].distance < obstacleDistance)
-                    cachedTilesTransform.Add(rayCastHits[j].transform);
+                    _cachedTilesTransform.Add(rayCastHits[j].transform);
                 
                 // if (rayCastHits[j].transform.gameObject.layer != 9) continue;
                 // var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -184,29 +247,29 @@ public class Map : MonoBehaviour
             angle -= angleIncrease;
         }
         
-        cachedTilesTransform = cachedTilesTransform.Distinct().ToList();
+        _cachedTilesTransform = _cachedTilesTransform.Distinct().ToList();
         
         // add current tile transform
-        cachedTilesTransform.Add(Tile(position).transform);
+        _cachedTilesTransform.Add(Tile(position).transform);
         
         // get tiles
-        foreach (var t in cachedTilesTransform
+        foreach (var t in _cachedTilesTransform
             .Select(tileTransform => tileTransform.GetComponent<Tile>())) 
-            cachedTiles.Add(t);
+            _cachedTiles.Add(t);
 
         // add walls close to tiles to reveal
-        var extraTilesToReveal = new List<Tile>();
-        foreach (var extraTiles in cachedTiles.Select(x => AdjacentTiles(x.Position)))
-            extraTilesToReveal.AddRange(extraTiles);
-        cachedTiles.AddRange(extraTilesToReveal);
+        _extraTilesToReveal.Clear();
+        foreach (var extraTiles in _cachedTiles.Select(x => AdjacentTiles(x.Position)))
+            _extraTilesToReveal.AddRange(extraTiles);
+        _cachedTiles.AddRange(_extraTilesToReveal);
         
         // remove duplicates
-        cachedTiles = cachedTiles.Distinct().ToList();
-        cachedTiles.Remove(null);
+        _cachedTiles = _cachedTiles.Distinct().ToList();
+        _cachedTiles.Remove(null);
         
         // Debug.Log((System.DateTime.Now - a).TotalMilliseconds);
 
-        return cachedTiles;
+        return _cachedTiles;
     }
     
     private static Vector3 VectorFromAngle(float angle)
@@ -229,13 +292,10 @@ public class Map : MonoBehaviour
     
     public SerializableMap Serialize()
     {
-        var width = tiles.GetLength(0);
-        var height = tiles.GetLength(1);
-        
         // tiles
         var serializableTiles = new List<Tile.SerializableTile>();
-        for (var x = 0; x < width; x += 1)
-        for (var y = 0; y < height; y += 1) 
+        for (var x = 0; x < Width; x += 1)
+        for (var y = 0; y < Height; y += 1) 
             serializableTiles.Add(tiles[x, y].Serialize());
         
         // entities
@@ -244,7 +304,8 @@ public class Map : MonoBehaviour
         var mapObject = new SerializableMap
         {
             name = name,
-            size = new Vector2Int(width, height),
+            mapId = id,
+            size = new Vector2Int(Width, Height),
             tiles = serializableTiles,
             entities = serializableEntities
         };
@@ -254,7 +315,7 @@ public class Map : MonoBehaviour
     public void Deserialize(SerializableMap serializableMap)
     {
         name = serializableMap.name;
-        mapId = serializableMap.mapId;
+        id = serializableMap.mapId;
         var gameMaster = GameMaster.instance;
         tiles = new Tile[serializableMap.size.x, serializableMap.size.y];
         foreach (var serializableTile in serializableMap.tiles)
@@ -266,11 +327,21 @@ public class Map : MonoBehaviour
             tiles[serializableTile.position.x, serializableTile.position.y] = tile;
             
             // properties
-            tile.Shadow = true;
-            tile.Luminosity = 0.5f;
+            if (Campaign.playerIsMaster)
+            {
+                tile.Shadow = false;
+                tile.Luminosity = 1f;
+                tile.Explored = true;
+            }
+            else
+            {
+                tile.Shadow = true;
+                tile.Luminosity = 0.5f;
+                tile.Explored = false;
+            }
         }
 
-        entities = new List<Entity>();
+        entities.Clear();
 
         foreach (var serializableEntity in serializableMap.entities)
         {

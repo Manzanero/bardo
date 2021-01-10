@@ -19,12 +19,14 @@ public class SelectionArea : MonoBehaviour
 
     private void Update()
     {
-        var activeMap = _gm.campaign.ActiveMap;
+        var activeMap = _gm.campaign.activeMap;
         if (!activeMap)
             return;
 
         if (Input.GetMouseButtonUp(0))
+        {
             meshRenderer.enabled = false;
+        }
 
         _cachedTile = activeMap.mouseTile ? activeMap.mouseTile : _cachedTile;
 
@@ -32,8 +34,9 @@ public class SelectionArea : MonoBehaviour
         {
             _startTile = _cachedTile;
             meshRenderer.enabled = true;
-            activeMap.selectedTiles = new List<Tile>();
-            activeMap.selectedEntities = new List<Entity>();
+            // foreach (var tile in activeMap.selectedTiles) DeselectionTint(tile);
+            activeMap.selectedTiles.Clear();
+            activeMap.selectedEntities.Clear();
         }
         
         if (!_startTile)
@@ -58,12 +61,24 @@ public class SelectionArea : MonoBehaviour
         var minY = Math.Min(startPos.y, endPos.y);
         var maxX = Math.Max(startPos.x, endPos.x);
         var maxY = Math.Max(startPos.y, endPos.y);
-        for (var x = minX; x <= maxX; x += 1) 
+        for (var x = minX; x <= maxX; x += 1)
         for (var y = minY; y <= maxY; y += 1)
             activeMap.selectedTiles.Add(activeMap.tiles[x, y]);
 
+        // foreach (var tile in activeMap.selectedTiles) SelectionTint(tile);
+        
         var tempSelect = activeMap.entities.Where(
             entity => activeMap.selectedTiles.Contains(entity.tile)).ToList();
         activeMap.selectedEntities = tempSelect;
     }
+
+    // private void SelectionTint(Tile t)
+    // {
+    //     t.meshRenderer.material.color = new Color(Color.cyan.r * 1.2f, Color.cyan.g * 1.2f, Color.cyan.b * 1.2f);
+    // }
+    //
+    // private void DeselectionTint(Tile t)
+    // {
+    //     t.meshRenderer.material.color = new Color(t.Luminosity, t.Luminosity, t.Luminosity);
+    // }
 }

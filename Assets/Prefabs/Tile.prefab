@@ -112,3 +112,5 @@ MonoBehaviour:
   meshFilter: {fileID: 4786217587889306282}
   meshRenderer: {fileID: 7316371099486162528}
   meshCollider: {fileID: 7181923994123184495}
+  blueprint: {fileID: 0}
+  map: {fileID: 0}
